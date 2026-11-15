@@ -1,7 +1,7 @@
 # Desktop deconvolution app implementation plan
 
-Status: Stages 1-2 implemented and verified on Windows with Python 3.13.6.
-Stages 3-7 remain in progress under the delegated implementation workflow.
+Status: Stages 1-4 implemented and verified on Windows with Python 3.13.6.
+Stages 5-7 remain under the delegated implementation workflow.
 
 ## Purpose
 
@@ -291,8 +291,8 @@ Cleanup will target exact, task-created paths and preserve existing user files, 
 - [x] Record the agreed implementation plan.
 - [x] Stage 1: Application foundation.
 - [x] Stage 2: First RL restoration workflow.
-- [ ] Stage 3: Controlled experiments and method comparisons.
-- [ ] Stage 4: RL iteration inspection.
+- [x] Stage 3: Controlled experiments and method comparisons.
+- [x] Stage 4: RL iteration inspection.
 - [ ] Stage 5: Saved reference verification.
 - [ ] Stage 6: Reproducible experiment export.
 - [ ] Stage 7: Windows packaging and documentation.
@@ -348,3 +348,26 @@ sample loading and RL execution. Sandbox ACLs prevented temporary-file I/O in th
 restricted process; the tests passed in the real Windows environment.
 Disposable directories from those attempts were removed. The native save dialog
 was opened and canceled; numerical save was exercised through the UI test.
+
+Stages 3-4 (issue #5) share the immutable experiment snapshot and were implemented
+together. Comparisons run IF, identity-regularized TRIF, and RL on one fixed
+observation. Source simulation regenerates Poisson noise only through an explicit
+action with recorded photon level, seed, intensity range, and input identities.
+Optional ground truth is validated against shape, SSIM size, and declared range;
+unavailable quality metrics show N/A and a reason. The four synchronized views
+show the selected run's original input, truth, output, and a compatible history
+output. History retains at most eight runs or 256 MiB, except a single larger run.
+
+RL inspection retains up to eight five-image checkpoints within 64 MiB. It shows
+the estimate, prediction, ratio, correction, and update with their equations and
+iteration labels; PSNR and SSIM curves are separate selectable plots. Timing
+includes OTF/algorithm work but excludes checkpoint copies, metrics, I/O, and
+display. Captured and baseline RL agree exactly in the maintained regression.
+
+All 21 checks passed, including fixed observations, seeded regeneration, metric
+availability/range, checkpoint equations/bounds, comparison history, and worker
+lifecycle. Native Windows inspection covered the bars comparison table and RL
+inspector. On the saved bars input, sampled PSNR peaks near 16.03692 dB at iteration
+74 and is 16.00629 dB at iteration 100 in this environment; this illustrates late
+quality loss, not parameter selection for a benchmark. Newly required saved
+ground truths and the bars input have provenance hashes. PR #4 completed Stage 2.

@@ -23,6 +23,21 @@
       "file": "psf_s2.tif",
       "source_relative_path": "data/psf_s2.tif",
       "sha256": "dd2a2f9f5e917d2d11bf0bf02542039c2d0c6f4cfa35611347d288fc76fceb53"
+    },
+    {
+      "file": "cells_gt.tif",
+      "source_relative_path": "data/cells_gt.tif",
+      "sha256": "b0f0b1d54884f207112d0b26b172ef69985ebfb9036f1259e5c09fa5d9d25ea8"
+    },
+    {
+      "file": "bars_gt.tif",
+      "source_relative_path": "data/bars_gt.tif",
+      "sha256": "67ca0a4bf005b3a6536066956ea6b007a3752f93da4b5eaec2770f47f317aeb9"
+    },
+    {
+      "file": "bars_s2_p200_r0_input.tif",
+      "source_relative_path": "data/bars_s2_p200_r0_input.tif",
+      "sha256": "3826dfbf9c3dcadcf05ec85dd8e4fbc4f9e2b2d96e3c0c3ec1d4f4aeec0cdbb3"
     }
   ]
 }
