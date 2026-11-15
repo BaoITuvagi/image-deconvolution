@@ -1,7 +1,7 @@
 # Desktop deconvolution app implementation plan
 
-Status: Stage 1 implemented and verified on Windows with Python 3.13.6.
-Stages 2-7 have not started.
+Status: Stages 1-2 implemented and verified on Windows with Python 3.13.6.
+Stages 3-7 remain in progress under the delegated implementation workflow.
 
 ## Purpose
 
@@ -290,7 +290,7 @@ Cleanup will target exact, task-created paths and preserve existing user files, 
 
 - [x] Record the agreed implementation plan.
 - [x] Stage 1: Application foundation.
-- [ ] Stage 2: First RL restoration workflow.
+- [x] Stage 2: First RL restoration workflow.
 - [ ] Stage 3: Controlled experiments and method comparisons.
 - [ ] Stage 4: RL iteration inspection.
 - [ ] Stage 5: Saved reference verification.
@@ -328,3 +328,23 @@ Stage 1 establishes the foundation only. Image import, user-input validation,
 restoration controls, workers, result views, exports, ImageJ execution, and a
 standalone Windows distribution are not implemented here. The existing research
 package was read without modifying its files. No release is published by this stage.
+
+Stage 1 PR #2 was self-reviewed, its ten checks rerun, and merged before Stage 2.
+For multi-stage implementation assignments I validate UI, interactions, and
+scientific workflows, self-review, merge when checks pass, and synchronize main
+without pausing for routine acceptance. Releases still require separate scope.
+
+Stage 2 (issue #3) adds grayscale TIFF/PNG loading with explicit integer conversion,
+PSF generation or import with center-padding and unit normalization, validated RL
+parameters, a background worker, synchronized image navigation, a shared display
+range, and float32 TIFF save. Results retain immutable input and parameter snapshots;
+edits mark an earlier result rather than relabel it. Closing during processing is
+blocked until the worker finishes.
+
+Stage 2 validation: all 15 numerical/I/O/desktop tests passed on Windows, including
+invalid inputs, color/stack rejection, PSF failures, worker failures, close guards,
+stale outputs, and numerical TIFF round trips. Native desktop inspection confirmed
+sample loading and RL execution. Sandbox ACLs prevented temporary-file I/O in the
+restricted process; the tests passed in the real Windows environment.
+Disposable directories from those attempts were removed. The native save dialog
+was opened and canceled; numerical save was exercised through the UI test.
