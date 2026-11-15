@@ -4,7 +4,7 @@ from pathlib import Path
 from dataclasses import replace
 import numpy as np
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout, QGroupBox, QGridLayout,
@@ -14,9 +14,12 @@ from PySide6.QtWidgets import (
 
 from image_deconvolution.core.algorithms import psf_gaussian
 from image_deconvolution.experiments.runs import RunConfig, degrade, restore
+from image_deconvolution.experiments.export import MissingInput, export_bundle, load_bundle
+from image_deconvolution.experiments.reference import compare_references, research_example
 from image_deconvolution.io.images import ImageData, read_image, sample_path, save_tiff
 from image_deconvolution.ui.image_view import ImageView
 from image_deconvolution.ui.inspection_panel import InspectionPanel
+from image_deconvolution.ui.reference_panel import ReferencePanel
 from image_deconvolution.ui.worker import ProcessingThread
 
 
@@ -133,9 +136,19 @@ class MainWindow(QMainWindow):
             signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self.mark_changed)
         self.setup_experiments()
+        self.reference_panel = ReferencePanel()
+        self.reference_panel.verify_requested.connect(self.verify_references)
+        self.reference_panel.load_requested.connect(self.load_research)
+        self.tabs.addTab(self.reference_panel, "Saved references")
+        self.export_button = self.button("Export selected experiment…", self.export_experiment)
+        self.form.addRow(self.export_button)
+        self.form.addRow(self.button("Reopen experiment JSON…", self.open_experiment))
+        field_labels = {item.widget() for row in range(self.form.rowCount())
+                        if (item := self.form.itemAt(row, QFormLayout.ItemRole.LabelRole)) is not None}
         for label in self.controls.findChildren(QLabel):
             label.setWordWrap(True)
-            label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+            label.setSizePolicy(QSizePolicy.Policy.Preferred if label in field_labels else QSizePolicy.Policy.Ignored,
+                                QSizePolicy.Policy.Preferred)
         for combo in self.controls.findChildren(QComboBox):
             combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
             combo.setMinimumContentsLength(10)
@@ -178,6 +191,90 @@ class MainWindow(QMainWindow):
             signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self.mark_changed)
         self.capture.toggled.connect(self.mark_changed)
+
+    def load_research(self, name):
+        if self.worker is not None:
+            return
+        try:
+            observation, psf, truth = research_example(name)
+            self.imported_psf = psf
+            self.psf_mode.setCurrentText("Imported PSF")
+            self.set_observation(observation)
+            self.ground_truth = truth
+            self.method.setCurrentText("RL")
+            self.iterations.setValue(5)
+            self.epsilon.setValue(1e-6)
+            self.regularization.setValue(.1)
+            self.data_range.setValue(1)
+            self.low.setValue(0)
+            self.high.setValue(1)
+            self.psf_info.setText("Saved sigma-2 PSF. Unit normalization; circular boundaries.")
+            self.truth_info.setText(f"Saved {name} ground truth; fixed intensity range L=1.")
+            self.mark_changed()
+            self.refresh_views()
+            self.tabs.setCurrentIndex(0)
+        except Exception as exc:
+            self.error(exc)
+
+    def verify_references(self):
+        self.start_operation(compare_references, self.reference_panel.accept_rows)
+
+    def export_experiment(self):
+        if self.record is None:
+            self.error("Select a restoration run first.")
+            return
+        destination = QFileDialog.getSaveFileName(self, "New experiment folder (must not exist)", "experiment", "Folder name (*)")[0]
+        if destination:
+            record = self.record
+            self.start_operation(lambda: export_bundle(destination, record),
+                                 self.export_finished)
+
+    def export_finished(self, path):
+        self.completion_message = f"Experiment saved: {path}"
+
+    def open_experiment(self):
+        path = QFileDialog.getOpenFileName(self, "Reopen experiment configuration", "", "Experiment JSON (*.json)")[0]
+        if not path:
+            return
+        overrides = {}
+        try:
+            while True:
+                try:
+                    images, config, degradation = load_bundle(path, overrides)
+                    for name, control in [("iterations", self.iterations), ("epsilon", self.epsilon),
+                                          ("threshold", self.threshold), ("regularization", self.regularization),
+                                          ("data_range", self.data_range)]:
+                        value = getattr(config, name)
+                        if not control.minimum() <= value <= control.maximum():
+                            raise ValueError(f"The saved {name} exceeds this version's control limits.")
+                    break
+                except MissingInput as exc:
+                    located = QFileDialog.getOpenFileName(self, str(exc), "", "Exact numerical input (*.npy)")[0]
+                    if not located:
+                        return
+                    overrides[exc.role] = located
+            self.set_observation(images["observation"])
+            self.imported_psf = images["psf"]
+            self.ground_truth = images["ground_truth"]
+            self.degradation = degradation
+            self.psf_mode.setCurrentText("Imported PSF")
+            self.method.setCurrentText(config.method)
+            self.iterations.setValue(config.iterations)
+            self.epsilon.setValue(config.epsilon)
+            self.threshold.setValue(config.threshold)
+            self.regularization.setValue(config.regularization)
+            self.data_range.setValue(config.data_range)
+            self.capture.setChecked(config.inspect)
+            # Refuse configurations that the current controls cannot represent.
+            if self.current_config() != config:
+                raise ValueError("This configuration exceeds the controls supported by this version.")
+            self.truth_info.setText("Reopened exact input snapshots. Click Run selected method to reproduce the result.")
+            self.psf_info.setText("Reopened full-image centered normalized PSF.")
+            self.mark_changed()
+            self.refresh_views()
+            self.tabs.setCurrentIndex(0)
+        except Exception as exc:
+            self.error(exc)
 
     def open_source(self):
         path = self.choose_image("Open source / ground truth for simulation")
@@ -371,18 +468,36 @@ class MainWindow(QMainWindow):
         if self.worker is not None:
             return
         self.controls.setEnabled(False)
+        self.completion_message = "Ready."
+        if hasattr(self, "reference_panel"):
+            self.reference_panel.setEnabled(False)
         self.statusBar().showMessage("Processing… You can inspect the views while the worker runs.")
         self.worker = ProcessingThread(operation, self)
-        self.worker.result.connect(accept)
-        self.worker.failed.connect(self.error)
+        self.pending_accept = accept
+        self.worker.result.connect(self.receive_result, Qt.ConnectionType.QueuedConnection)
+        self.worker.failed.connect(self.operation_failed)
         self.worker.finished.connect(self.worker_finished)
         self.worker.start()
 
+    @Slot(object)
+    def receive_result(self, result):
+        try:
+            self.pending_accept(result)
+        except Exception as exc:
+            self.operation_failed(str(exc))
+
+    @Slot()
     def worker_finished(self):
         worker, self.worker = self.worker, None
         worker.deleteLater()
         self.controls.setEnabled(True)
-        self.statusBar().showMessage("Ready.")
+        self.reference_panel.setEnabled(True)
+        self.statusBar().showMessage(self.completion_message)
+
+    @Slot(str)
+    def operation_failed(self, message):
+        self.completion_message = f"Operation failed: {message}"
+        self.error(message)
 
     def accept_record(self, record):
         self.history.append(record)

@@ -30,6 +30,14 @@ bars demonstration. Their original paths and SHA-256 hashes are recorded in the
 package sample manifest. They share the same synthetic research provenance;
 none of these images is presented as a real-world photograph.
 
+Stages 5-6 add the unchanged fibers ground truth and sigma-2/P=200/seed-0 input,
+six `results/dl2_{cells,bars,fibers}_{RL,TRIF}.tif` reference outputs, and saved
+`imagej_metrics.csv`, `crosscheck.csv`, and `reference_environment.json` metadata.
+The sample manifest records each source-relative path and SHA-256. ImageJ
+MSE/PSNR are saved measurements; SSIM is computed in Python. New Python-to-saved
+TIFF comparisons do not rerun ImageJ or the JAR. The app does not redistribute
+ImageJ or DeconvolutionLab2 binaries.
+
 ## Preserved calculations
 
 - A full-image centered, normalized PSF becomes an OTF using `ifftshift` and

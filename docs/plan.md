@@ -1,7 +1,7 @@
 # Desktop deconvolution app implementation plan
 
-Status: Stages 1-4 implemented and verified on Windows with Python 3.13.6.
-Stages 5-7 remain under the delegated implementation workflow.
+Status: Stages 1-6 implemented and verified on Windows with Python 3.13.6.
+Stage 7 packaging remains under the delegated implementation workflow.
 
 ## Purpose
 
@@ -293,8 +293,8 @@ Cleanup will target exact, task-created paths and preserve existing user files, 
 - [x] Stage 2: First RL restoration workflow.
 - [x] Stage 3: Controlled experiments and method comparisons.
 - [x] Stage 4: RL iteration inspection.
-- [ ] Stage 5: Saved reference verification.
-- [ ] Stage 6: Reproducible experiment export.
+- [x] Stage 5: Saved reference verification.
+- [x] Stage 6: Reproducible experiment export.
 - [ ] Stage 7: Windows packaging and documentation.
 
 Stage 1 implements [issue #1](https://github.com/BaoITuvagi/image-deconvolution/issues/1)
@@ -371,3 +371,27 @@ inspector. On the saved bars input, sampled PSNR peaks near 16.03692 dB at itera
 74 and is 16.00629 dB at iteration 100 in this environment; this illustrates late
 quality loss, not parameter selection for a benchmark. Newly required saved
 ground truths and the bars input have provenance hashes. PR #4 completed Stage 2.
+
+Stages 5-6 (issue #7) curate the fibers example, six saved DL2 TIFFs, and saved
+ImageJ measurements/environment metadata with source hashes. New Python RL/TRIF
+calculations on the saved inputs reproduce all six comparisons. The largest
+absolute difference is 8.104919255735865e-7 for bars/RL, matching the recorded
+configuration-specific baseline. The reference tab separates agreement from
+ground-truth quality, labels ImageJ MSE/PSNR as saved, and labels SSIM as Python.
+Native Windows inspection confirmed the table, matched image views, and signed
+difference display. No ImageJ/JAR execution occurred.
+
+Experiment export creates a new folder, refusing an existing destination. It
+contains version-1 JSON, exact float64 .npy inputs, original source identities,
+numerical/file hashes, method/PSF/noise settings, conventions, environment versions,
+float32 numerical TIFF, CSV metrics, and available RL curve measurements. Reopen
+checks conventions and hashes, permits locating moved input arrays, and restores
+controls for an explicit rerun. JSON alone does not embed pixels. Repeated PSF
+normalization on reload is checked with absolute output tolerance 1e-12 here;
+this is separate from plugin agreement tolerance.
+
+All 25 checks passed, including six references, exact input round trips, CSV/TIFF
+agreement, UI export/reopen/rerun, missing/located/tampered arrays, invalid configs,
+and overwrite refusal. Worker results are delivered through an explicitly queued
+Qt slot before touching widgets. Source research remains unchanged. PR #6
+completed Stages 3-4; packaging and release documentation follow separately.

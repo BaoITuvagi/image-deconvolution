@@ -55,6 +55,8 @@ def read_image(path, policy="preserve"):
                 raise ValueError("Stacks are unsupported. Select a single 2D grayscale image.")
             if image.mode not in {"L", "I", "F", "I;16", "I;16L", "I;16B"}:
                 raise ValueError("Only grayscale input is supported. Convert color or palette images explicitly before loading.")
+            if image.width * image.height > 4096 * 4096:
+                raise ValueError("Images are limited to 16 megapixels in this version.")
             raw = np.array(image)
     except (UnidentifiedImageError, OSError) as exc:
         raise ValueError(f"Cannot read image: {path.name}. {exc}") from exc

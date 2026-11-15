@@ -23,12 +23,12 @@ class RunConfig:
     def validate(self):
         if type(self.iterations) is not int or not 1 <= self.iterations <= 1000:
             raise ValueError("RL iterations must be an integer from 1 to 1000.")
-        if not np.isfinite(self.epsilon) or self.epsilon <= 0:
+        if type(self.epsilon) not in {int, float} or not np.isfinite(self.epsilon) or self.epsilon <= 0:
             raise ValueError("Epsilon must be finite and positive.")
         if self.method not in {"RL", "IF", "TRIF"}:
             raise ValueError("Choose RL, thresholded IF, or zeroth-order TRIF.")
         for name, value in [("IF threshold", self.threshold), ("TRIF lambda", self.regularization), ("Intensity range L", self.data_range)]:
-            if not np.isfinite(value) or value <= 0:
+            if type(value) not in {int, float} or not np.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and positive.")
         if type(self.inspect) is not bool:
             raise ValueError("Capture RL steps must be a boolean.")
