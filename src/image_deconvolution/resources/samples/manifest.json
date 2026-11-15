@@ -1,7 +1,7 @@
 {
   "source": "Group 07 course research package, Deconvolution_XLA",
   "case": "cells_s2_p200_r0",
-  "description": "Saved synthetic cells input and matching full-image Gaussian PSF; not regenerated.",
+  "description": "Curated unchanged synthetic research inputs, ground truths, PSF, six saved DL2 outputs and saved measurement metadata. Opening these does not execute ImageJ.",
   "shape": [
     256,
     256
@@ -38,6 +38,61 @@
       "file": "bars_s2_p200_r0_input.tif",
       "source_relative_path": "data/bars_s2_p200_r0_input.tif",
       "sha256": "3826dfbf9c3dcadcf05ec85dd8e4fbc4f9e2b2d96e3c0c3ec1d4f4aeec0cdbb3"
+    },
+    {
+      "file": "fibers_gt.tif",
+      "source_relative_path": "data/fibers_gt.tif",
+      "sha256": "f34e66aca079dc15176c156870e89387e3812f07e0145d026852e266f50aae89"
+    },
+    {
+      "file": "fibers_s2_p200_r0_input.tif",
+      "source_relative_path": "data/fibers_s2_p200_r0_input.tif",
+      "sha256": "d651437d4e8b4ef8279ab1aeb88b4fc014dfb35c761c7766bbf96e06d42b8761"
+    },
+    {
+      "file": "dl2_cells_RL.tif",
+      "source_relative_path": "results/dl2_cells_RL.tif",
+      "sha256": "725adf580bc7ed3711f49c7707e05395774b68666caac8bae600a82656b9ee90"
+    },
+    {
+      "file": "dl2_cells_TRIF.tif",
+      "source_relative_path": "results/dl2_cells_TRIF.tif",
+      "sha256": "2595057258cae995f41d8056c119e21c1f0e634036969409f2b67a0b9388843b"
+    },
+    {
+      "file": "dl2_bars_RL.tif",
+      "source_relative_path": "results/dl2_bars_RL.tif",
+      "sha256": "0ee81dffc8fa5db97eed2b99127288a41bcb1c7c670902955ac2290f3e313d34"
+    },
+    {
+      "file": "dl2_bars_TRIF.tif",
+      "source_relative_path": "results/dl2_bars_TRIF.tif",
+      "sha256": "4e0a269866e84c0832abe9535321dfc87df866db183bb041c1b0ff4f0220f735"
+    },
+    {
+      "file": "dl2_fibers_RL.tif",
+      "source_relative_path": "results/dl2_fibers_RL.tif",
+      "sha256": "d712485c4808e198a488fe008cb983c7f572ae823a3c9d16abb248c15cff043f"
+    },
+    {
+      "file": "dl2_fibers_TRIF.tif",
+      "source_relative_path": "results/dl2_fibers_TRIF.tif",
+      "sha256": "2d18f8f82954f8969be3f03c9f79da42c7d8f013a2b6160b4804658e79b275c0"
+    },
+    {
+      "file": "imagej_metrics.csv",
+      "source_relative_path": "results/imagej_metrics.csv",
+      "sha256": "26a7ee8a979fb43b471ba83308b01cd313c6e414a4b185926c2489512fe090eb"
+    },
+    {
+      "file": "crosscheck.csv",
+      "source_relative_path": "results/crosscheck.csv",
+      "sha256": "e8adffe7eca382a8bd1d43e1b314f6af2f38b5ffea50c834b57c0c134851d73a"
+    },
+    {
+      "file": "reference_environment.json",
+      "source_relative_path": "results/reference_environment.json",
+      "sha256": "c8ca9119bcb54e66354a49c8d63f41329b5dddad1bb329bce971f280796eb4ca"
     }
   ]
 }

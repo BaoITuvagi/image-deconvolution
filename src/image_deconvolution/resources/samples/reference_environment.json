@@ -1,0 +1,6 @@
+{
+  "dl2_sha256": "37ade1a14b7063b5a1c9b53d685379cc45b3704d023db1d10dbeae92b0a6762c",
+  "ij_sha256": "7355280ff692d343293af1043dd45d437291f4572e3cf3167990a85eab59ac2e",
+  "java": "openjdk version \"21.0.13\" 2026-10-20\nOpenJDK Runtime Environment (build 21.0.13+9-1-deb13u2-Debian)\nOpenJDK 64-Bit Server VM (build 21.0.13+9-1-deb13u2-Debian, mixed mode, sharing)\n",
+  "mode": "DL2 command line, ImageJ TIFF I/O, Academic FFT; no Fiji GUI"
+}

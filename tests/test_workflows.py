@@ -150,3 +150,25 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.window.record.config.method, "IF")
         self.window.clear_history()
         self.assertEqual(len(self.window.history), 0)
+        self.assertIsNone(self.window.inspector.record)
+
+    def test_reference_and_export_reopen_workflow(self):
+        self.window.verify_references()
+        self.wait_for_worker()
+        self.assertEqual(len(self.window.reference_panel.rows), 6)
+        self.window.load_research("fibers")
+        self.window.run_restoration()
+        self.wait_for_worker()
+        output = self.window.record.output.copy()
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            folder = str(Path(directory) / "saved experiment")
+            with patch("PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(folder, "")):
+                self.window.export_experiment()
+            self.wait_for_worker()
+            self.assertIn("Experiment saved:", self.window.statusBar().currentMessage())
+            with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(Path(folder) / "experiment.json"), "")):
+                self.window.open_experiment()
+            self.window.run_restoration()
+            self.wait_for_worker()
+            np.testing.assert_allclose(self.window.record.output, output, rtol=0, atol=1e-12)
+        self.assertFalse(self.warning.called, str(self.warning.call_args))

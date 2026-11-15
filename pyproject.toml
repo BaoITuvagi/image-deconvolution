@@ -22,4 +22,4 @@ image-deconvolution = "image_deconvolution.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-image_deconvolution = ["resources/samples/*.tif", "resources/samples/*.json"]
+image_deconvolution = ["resources/samples/*.tif", "resources/samples/*.json", "resources/samples/*.csv"]
