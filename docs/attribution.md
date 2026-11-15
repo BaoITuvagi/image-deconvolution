@@ -17,12 +17,18 @@ record the inspected source bytes; they are provenance records, not runtime path
 | `data/cells_s2_p200_r0_input.tif` | `28c51869c95a77caaee9de85b04ad7db2ca513ce452aee5670dbd5d3655959d5` | Unchanged saved input for the next RL workflow |
 | `data/psf_s2.tif` | `dd2a2f9f5e917d2d11bf0bf02542039c2d0c6f4cfa35611347d288fc76fceb53` | Unchanged matching PSF |
 
-Only these two TIFFs are included as small package resources. The input is a
+The initial two TIFFs are included as small package resources. The input is a
 256 x 256 synthetic cells image blurred with a Gaussian sigma of 2 pixels and
 Poisson noise at photon level 200, seed 0. TIFF storage is float32. The input was
 copied, not regenerated; the same seed on another platform need not reproduce
 the saved pixels. The manifest beside the TIFFs records their identities. Ground
 truth, restored outputs, and plugin references are deferred until needed.
+
+Stages 3-4 also import unchanged `data/cells_gt.tif`, `data/bars_gt.tif`, and
+`data/bars_s2_p200_r0_input.tif` for quality evaluation and the late-iteration
+bars demonstration. Their original paths and SHA-256 hashes are recorded in the
+package sample manifest. They share the same synthetic research provenance;
+none of these images is presented as a real-world photograph.
 
 ## Preserved calculations
 
