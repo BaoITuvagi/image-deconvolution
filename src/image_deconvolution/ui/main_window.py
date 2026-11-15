@@ -9,7 +9,7 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout, QGroupBox, QGridLayout,
     QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox,
-    QSizePolicy, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QSizePolicy, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem, QToolBox, QVBoxLayout, QWidget,
 )
 
 from image_deconvolution.core.algorithms import psf_gaussian
@@ -152,6 +152,43 @@ class MainWindow(QMainWindow):
         for combo in self.controls.findChildren(QComboBox):
             combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
             combo.setMinimumContentsLength(10)
+        self.organize_controls()
+
+    def organize_controls(self):
+        """Keep the complete workflow accessible without a single very long form."""
+        groups = [
+            ("Inputs & simulation", ["policy", "Open degraded image…", "Load saved cells example", "Load saved bars example",
+                "Open source for simulation…", "Open optional ground truth…", "Clear ground truth", "truth_info", "input_info",
+                "photons", "seed", "Generate / regenerate degradation"]),
+            ("Restoration", ["psf_mode", "sigma", "Open PSF…", "psf_info", "method", "threshold", "regularization",
+                "iterations", "epsilon", "data_range", "capture", "Run selected method", "Compare IF, TRIF, and RL",
+                "Save selected output TIFF…", "result_info"]),
+            ("Display & history", ["low", "high", "Apply shared display range", "Fit all images", "other_run", "Clear run history", "note"]),
+            ("Experiment files", ["Export selected experiment…", "Reopen experiment JSON…"]),
+        ]
+        rows = {}
+        while self.form.rowCount():
+            taken = self.form.takeRow(0)
+            widget = taken.fieldItem.widget()
+            key = widget.text() if isinstance(widget, QPushButton) else next(
+                (name for name in ["policy", "truth_info", "input_info", "photons", "seed", "psf_mode", "sigma", "psf_info",
+                    "method", "threshold", "regularization", "iterations", "epsilon", "data_range", "capture", "result_info",
+                    "low", "high", "other_run"] if getattr(self, name) is widget), "note")
+            label = taken.labelItem.widget() if taken.labelItem is not None else None
+            rows[key] = (label, widget)
+        self.control_pages = QToolBox()
+        for title, keys in groups:
+            page = QWidget()
+            layout = QFormLayout(page)
+            layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+            layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+            for key in keys:
+                label, widget = rows.pop(key)
+                layout.addRow(label, widget) if label is not None else layout.addRow(widget)
+            self.control_pages.addItem(page, title)
+        if rows:
+            raise RuntimeError(f"Unassigned workflow controls: {list(rows)}")
+        self.form.addRow(self.control_pages)
 
     def setup_experiments(self):
         self.form.insertRow(3, self.button("Open source for simulation…", self.open_source))
@@ -213,6 +250,7 @@ class MainWindow(QMainWindow):
             self.mark_changed()
             self.refresh_views()
             self.tabs.setCurrentIndex(0)
+            self.control_pages.setCurrentIndex(1)
         except Exception as exc:
             self.error(exc)
 
@@ -247,6 +285,8 @@ class MainWindow(QMainWindow):
                         value = getattr(config, name)
                         if not control.minimum() <= value <= control.maximum():
                             raise ValueError(f"The saved {name} exceeds this version's control limits.")
+                        if isinstance(control, QDoubleSpinBox) and round(value, control.decimals()) != value:
+                            raise ValueError(f"The saved {name} requires more precision than these controls support.")
                     break
                 except MissingInput as exc:
                     located = QFileDialog.getOpenFileName(self, str(exc), "", "Exact numerical input (*.npy)")[0]
@@ -273,6 +313,7 @@ class MainWindow(QMainWindow):
             self.mark_changed()
             self.refresh_views()
             self.tabs.setCurrentIndex(0)
+            self.control_pages.setCurrentIndex(1)
         except Exception as exc:
             self.error(exc)
 
@@ -407,6 +448,9 @@ class MainWindow(QMainWindow):
 
     def load_sample(self):
         try:
+            self.method.setCurrentText("RL")
+            self.epsilon.setValue(1e-6)
+            self.capture.setChecked(True)
             self.imported_psf = read_image(sample_path("psf_s2.tif"))
             self.psf_mode.setCurrentText("Imported PSF")
             self.iterations.setValue(5)
@@ -424,6 +468,10 @@ class MainWindow(QMainWindow):
 
     def load_bars(self):
         try:
+            self.method.setCurrentText("RL")
+            self.epsilon.setValue(1e-6)
+            self.low.setValue(0)
+            self.high.setValue(1)
             self.imported_psf = read_image(sample_path("psf_s2.tif"))
             self.psf_mode.setCurrentText("Imported PSF")
             self.set_observation(read_image(sample_path("bars_s2_p200_r0_input.tif")))

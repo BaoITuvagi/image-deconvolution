@@ -1,7 +1,7 @@
 # Desktop deconvolution app implementation plan
 
-Status: Stages 1-6 implemented and verified on Windows with Python 3.13.6.
-Stage 7 packaging remains under the delegated implementation workflow.
+Status: Stages 1-7 implemented and self-validated on Windows with Python 3.13.6.
+The Windows evaluation distribution is prepared locally; no GitHub Release is published.
 
 ## Purpose
 
@@ -295,7 +295,7 @@ Cleanup will target exact, task-created paths and preserve existing user files, 
 - [x] Stage 4: RL iteration inspection.
 - [x] Stage 5: Saved reference verification.
 - [x] Stage 6: Reproducible experiment export.
-- [ ] Stage 7: Windows packaging and documentation.
+- [x] Stage 7: Windows packaging and documentation.
 
 Stage 1 implements [issue #1](https://github.com/BaoITuvagi/image-deconvolution/issues/1)
 on `feat/app-foundation`. I created packaging metadata, pinned the verified runtime
@@ -395,3 +395,50 @@ agreement, UI export/reopen/rerun, missing/located/tampered arrays, invalid conf
 and overwrite refusal. Worker results are delivered through an explicitly queued
 Qt slot before touching widgets. Source research remains unchanged. PR #6
 completed Stages 3-4; packaging and release documentation follow separately.
+
+Stage 7 (issue #9) adds a PyInstaller 6.16.0 folder build, pinned Windows build
+constraints, user guide, local release notes, third-party notices/license copies,
+and an actual desktop capture for the README. Runtime dependencies now use
+PySide6 Essentials 6.10.0; the quality plot uses Qt Widgets/QPainter. The spec
+filters optional Qt plugins and QML/PDF/Virtual Keyboard DLLs; the final profile
+contains Qt Core, Gui, Widgets, Network and OpenGL, with Windows/offscreen platform
+and native style plugins. No Qt Charts, ImageJ, or DL2 binaries are bundled.
+
+The sidebar is organized into four workflow sections. Rendering checks found and
+fixed a Qt virtual-method name collision in the custom plot and a fit-to-view
+problem when switching tabs/resizing. Maintained checks now cover actual plot
+rendering, synchronized zoom state, GUI-thread delivery, and saved-example method
+reset. Git checkout also exposed line-ending conversion of saved CSV metadata;
+`.gitattributes` now preserves research-resource bytes and all source hashes match.
+
+Verification performed:
+
+- All 26 numerical/I/O/desktop regression checks passed. After the last UI fixes,
+  the eight affected I/O/desktop checks were rerun and passed.
+- The maintained `--verify-workflow NEW_DIRECTORY` command passed its ten groups
+  on the source app and final frozen executable: missing input, RL baseline,
+  stale output/display independence/TIFF save, seeded fixed-input comparisons,
+  missing-truth metrics, bounded inspector and bars behavior, export/reopen/rerun,
+  six references, worker failure/close recovery, and denied Python connections.
+- The complete frozen folder was copied outside the checkout into a path with
+  spaces. With PATH restricted to Windows directories and no PYTHONPATH,
+  PYTHONHOME, or VIRTUAL_ENV, it completed the workflow and exited with code 0.
+  This checks independence from the development interpreter on this machine,
+  not a separate clean Windows installation or OS-level network isolation.
+- Native computer-use inspection of the frozen app confirmed saved sample
+  loading, expanding Restoration, clicking the three-method comparison, and
+  synchronized wheel zoom. The final minimal-Qt build also opened and canceled
+  its native file dialog successfully. Numerical export/reopen actions were exercised
+  by the Qt acceptance driver with predetermined dialog destinations.
+- Six new Python comparisons retained maximum absolute difference
+  8.104919255735865e-7. No ImageJ/JAR execution or heavy benchmark rerun occurred.
+
+The final local folder is `dist/Image Deconvolution/`; start
+`ImageDeconvolution.exe` with its `_internal` directory intact. It includes small
+research resources, Python runtime, native dependencies and notices. It is
+unsigned, supports the documented 2D grayscale/circular-boundary CPU workflows,
+and has no running-worker cancellation. Research redistribution rights remain to
+be confirmed before public distribution; no project-wide research license is
+invented. PR #8 completed Stages 5-6. Disposable verification folders, temporary
+copies, source bytecode/metadata, and intermediate builds are removed before the
+final Stage 7 PR; the development .venv and final local distribution are retained.

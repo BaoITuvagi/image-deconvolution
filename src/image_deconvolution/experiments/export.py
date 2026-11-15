@@ -28,7 +28,7 @@ class MissingInput(ValueError):
 
 def environment_versions():
     versions = {"Python": platform.python_version(), "platform": platform.platform()}
-    for name in ["image-deconvolution", "numpy", "scipy", "Pillow", "PySide6"]:
+    for name in ["image-deconvolution", "numpy", "scipy", "Pillow", "PySide6-Essentials", "shiboken6"]:
         try:
             versions[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
