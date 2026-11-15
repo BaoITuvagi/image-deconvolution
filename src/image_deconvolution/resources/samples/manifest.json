@@ -1,0 +1,28 @@
+{
+  "source": "Group 07 course research package, Deconvolution_XLA",
+  "case": "cells_s2_p200_r0",
+  "description": "Saved synthetic cells input and matching full-image Gaussian PSF; not regenerated.",
+  "shape": [
+    256,
+    256
+  ],
+  "storage_dtype": "float32",
+  "gaussian_sigma_pixels": 2,
+  "noise_model": "Poisson",
+  "photon_level": 200,
+  "seed": 0,
+  "boundaries": "circular",
+  "intensity_convention": "Research normalization with L = 1; noise can exceed 1. Preserve original values.",
+  "files": [
+    {
+      "file": "cells_s2_p200_r0_input.tif",
+      "source_relative_path": "data/cells_s2_p200_r0_input.tif",
+      "sha256": "28c51869c95a77caaee9de85b04ad7db2ca513ce452aee5670dbd5d3655959d5"
+    },
+    {
+      "file": "psf_s2.tif",
+      "source_relative_path": "data/psf_s2.tif",
+      "sha256": "dd2a2f9f5e917d2d11bf0bf02542039c2d0c6f4cfa35611347d288fc76fceb53"
+    }
+  ]
+}
