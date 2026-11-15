@@ -1,21 +1,49 @@
 # Image Deconvolution
 
-I am building an offline Windows desktop app to study thresholded inverse filtering,
-zeroth-order Tikhonov regularization, and Richardson-Lucy deconvolution. The app
+I built an offline Windows desktop app to investigate thresholded inverse
+filtering (IF), zeroth-order Tikhonov (TRIF), and Richardson-Lucy (RL). The app
 supports the group 07 image processing course project. I develop the desktop app
-independently and adapt the group's existing numerical research with
-[source attribution](docs/attribution.md).
+independently and retain [attribution](docs/attribution.md) for the group's reused
+research code, synthetic images, and saved reference results.
 
-The first restoration workflow is available: open a grayscale degraded TIFF/PNG,
-generate or import a centered PSF, run Richardson-Lucy in a background worker,
-inspect synchronized views, and save numerical float32 TIFF. Load saved cells
-example is a quick starting point. The [plan](docs/plan.md) tracks later stages.
+![Desktop comparison workspace](docs/images/workspace.png)
 
-## Development setup
+## Run the Windows build
 
-Use 64-bit Python 3.13 on Windows. Setup was verified with Python 3.13.6; other
-Python minor versions are currently excluded by the package metadata. From the
-repository root in PowerShell:
+The local distribution is `dist/Image Deconvolution/`. Open
+`ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
+Fiji, a server, an account, and network access are not required to use the app.
+This is an unsigned local evaluation build; no GitHub Release is published.
+See the [user guide](docs/user-guide.md), [release notes](docs/release-notes.md),
+and [third-party notices](docs/third-party-notices.md).
+
+## Features and quick demonstration
+
+1. Inputs & simulation > Load saved cells example opens saved float TIFF input,
+   ground truth, and the matching PSF; it does not regenerate noise.
+2. Restoration > Compare IF, TRIF, and RL runs all methods on identical input in
+   a worker. The table shows full-image metrics and OTF/algorithm execution time.
+3. Select a history row and an Other output in Display & history. Scroll to zoom
+   and drag to pan the synchronized views, using one shared display range.
+4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
+   iterations when compatible ground truth exists. The saved bars example shows
+   that late iterations can reduce quality.
+5. Saved references computes six new Python comparisons against saved DL2 TIFFs.
+   It separates agreement from restoration quality and labels saved ImageJ
+   measurements. It never executes Fiji/ImageJ or a JAR.
+6. Save numerical float TIFF or use Experiment files to export/reopen a versioned
+   JSON bundle with exact input arrays, hashes, CSV measurements, and conventions.
+
+The app also opens single grayscale TIFF/PNG files, generates or imports centered
+normalized PSFs, and simulates seeded Poisson degradation explicitly. Integer
+conversion and intensity range L are explicit. Without suitable ground truth,
+quality measurements are unavailable with a reason. Parameter edits never
+regenerate the observation or relabel a historical output.
+
+## Develop from source
+
+Use 64-bit Python 3.13 (verified with 3.13.6) on Windows. In PowerShell at the
+repository root:
 
 ```powershell
 py -3.13 -m venv .venv
@@ -23,64 +51,61 @@ py -3.13 -m venv .venv
 .venv\Scripts\python.exe -B -m image_deconvolution
 ```
 
-The window closes through **File > Exit**, **Ctrl+Q**, or the title-bar
-close button. After installation, `.venv\Scripts\image-deconvolution.exe` is an
-alternative launcher. Activating the environment is optional. Installation
-downloads dependencies; running the installed app requires no server or network.
-Do not install these dependencies into the global Python environment.
+The alternative launcher is `.venv\Scripts\image-deconvolution.exe`. Exit through
+File > Exit, Ctrl+Q, or the title bar; wait for a running worker to finish first.
+Installation downloads dependencies; app processing is offline. Global packages
+are not needed. Runtime versions are pinned in `pyproject.toml`: NumPy 2.3.3,
+SciPy 1.16.2, Pillow 12.3.0, and PySide6 Essentials/Shiboken6 6.10.0. The build
+backend is setuptools 82.0.1. Qt Charts is not used or bundled.
 
-Direct runtime dependencies are pinned in `pyproject.toml`: NumPy 2.3.3,
-SciPy 1.16.2, Pillow 12.3.0, and PySide6 6.10.0. PySide6 pins its matching Qt
-components and Shiboken. The build backend is setuptools 82.0.1. These are the
-verified app environment versions, not a claim to reproduce the original research
-environment or its performance measurements.
-
-## Numerical validation
+## Validate and build
 
 ```powershell
 .venv\Scripts\python.exe -B -m unittest discover -s tests -v
 .venv\Scripts\python.exe -m pip check
+.venv\Scripts\python.exe -B -m image_deconvolution --verify-workflow "new verification folder"
+.venv\Scripts\python.exe -m pip install -e ".[build]" -c packaging\build-constraints.txt
+.venv\Scripts\python.exe -B tools\build_windows.py
 ```
 
-The maintained checks preserve the original convolution, adjoint, SSIM identity,
-RL identity, and Tikhonov analytic checks. They also cover IF threshold behavior,
-odd rectangular PSF centering, fixed-range PSNR, RL checkpoint independence, and
-importing the numerical core without Qt. They use Python's standard `unittest`.
+The maintained tests cover numerical invariants, image/PSF validation, fixed
+observations, RL phases, saved references, exact experiment inputs, CSV/TIFF
+round trips, worker failures and UI workflows. The verification command exercises
+the real Qt window, actions, workers, inspector, references, export/reopen and
+clean close. It writes a JSON result and three window captures into a new folder,
+and denies Python socket connections during that run. The frozen executable
+supports the same command:
 
-The numerical API currently assumes valid 2D floating-point inputs with matching
-shapes. Use float64 for processing, a centered normalized full-image PSF, circular
-boundaries, and normalized intensities with PSNR range L = 1. RL starts from a
-copy of the observed image and uses epsilon = 1e-6 by default. Tikhonov uses L = I.
-The core does not clip or rescale restoration output. Workflow validation covers
-finite grayscale inputs, PSF mass and size, nonnegative observations, and RL
-parameters. Color images and stacks are rejected. Choose Preserve values or
-explicit unsigned-integer normalization before loading an image. PSFs are
-center-padded and normalized to unit sum. Display changes do not affect exports.
+```powershell
+& ".\dist\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
+```
 
-## Source layout and samples
+The builder refuses an existing distribution directory. Build tools are pinned
+in `packaging/build-constraints.txt`. The folder build keeps Qt DLLs dynamically
+replaceable and includes third-party notices. Generated verification folders and
+intermediate builds are disposable; the final local distribution is retained.
 
-- `src/image_deconvolution/core/`: numerical routines without Qt dependencies.
-- `src/image_deconvolution/ui/`: the minimal desktop window.
-- `src/image_deconvolution/resources/samples/`: the saved synthetic cells input,
-  matching sigma-2 PSF, and provenance manifest for the next workflow.
-- `tests/`: numerical regression checks.
-- `docs/`: plan and research attribution.
+## Scientific scope and limitations
 
-The samples are package data. They can be located independently of the checkout
-or current directory through `importlib.resources.files("image_deconvolution")`
-and its `resources/samples` child. Load saved cells example opens both files.
-No external research folder is needed to install, test, or launch the app.
+The numerical layer is independent of Qt. The baseline uses float64 computation,
+2D grayscale known-PSF restoration, circular boundaries, thresholded IF, TRIF with
+L=I, and RL initialized from the observation with epsilon 1e-6. PSNR uses an
+explicit fixed intensity range (L=1 for normalized research data). Display
+conversion does not affect metrics or exports. TIFF output rounds to float32.
 
-## Research scope and limitations
+The original 81 cases combine three synthetic images, three blur widths, three
+photon levels, and three seeds; they are not 81 independent scenes. Saved inputs
+are used for report comparisons. Same-seed regeneration across platforms need
+not produce identical noise. The verified largest Python-to-saved-DL2 absolute
+difference is 8.104919255735865e-7 for the recorded six comparisons, not a universal
+tolerance. ImageJ MSE/PSNR are saved measurements; SSIM is calculated in Python.
 
-The baseline concerns synthetic 2D grayscale images, known PSFs, and circular
-boundaries. The original 81 cases combine three source images, three blur widths,
-three photon levels, and three seeds; they are not 81 independent scenes. Metrics
-require compatible ground truth and explicit intensity conventions.
+The app supplements Fiji/ImageJ's reference role. It does not claim a new
+algorithm or superiority over DeconvolutionLab2. Color/3D, blind deconvolution,
+alternate boundaries, direct JAR execution and cancellation are outside this
+version. Inputs are limited to 16 megapixels; history and RL capture are bounded.
+The Windows build is verified on this machine, not a separate clean installation.
+Research redistribution rights remain to be confirmed before public distribution;
+no project-wide license is assigned to reused material.
 
-Fiji/ImageJ with DeconvolutionLab2 remains the external reference platform.
-Stage 1 does not run ImageJ, verify new plugin comparisons, or provide a packaged
-Windows distribution. I do not claim a new restoration algorithm or superiority
-over DeconvolutionLab2. No project-wide license has been assigned to the reused
-research; attribution does not grant redistribution rights. External JARs, source
-reports, full research datasets, and build outputs are not bundled.
+See the [plan and verified progress](docs/plan.md) for implementation details.

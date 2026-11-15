@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
 
 
 class ImageView(QGraphicsView):
-    navigated = Signal(object, object)
+    navigated = Signal(object, object, bool)
 
     def __init__(self):
         super().__init__()
@@ -17,6 +17,9 @@ class ImageView(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.array = None
         self._syncing = False
+        self._auto_fit = True
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.horizontalScrollBar().valueChanged.connect(self._notify)
         self.verticalScrollBar().valueChanged.connect(self._notify)
 
@@ -37,10 +40,22 @@ class ImageView(QGraphicsView):
 
     def fit_image(self):
         if self.array is not None:
+            self._auto_fit = True
             self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
             self._notify()
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.array is not None and self._auto_fit:
+            self.fit_image()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._auto_fit = False
+        super().mousePressEvent(event)
+
     def wheelEvent(self, event):
+        self._auto_fit = False
         factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
         if 0.02 <= self.transform().m11() * factor <= 100:
             self.scale(factor, factor)
@@ -49,10 +64,11 @@ class ImageView(QGraphicsView):
 
     def _notify(self):
         if not self._syncing:
-            self.navigated.emit(self.transform(), self.mapToScene(self.viewport().rect().center()))
+            self.navigated.emit(self.transform(), self.mapToScene(self.viewport().rect().center()), self._auto_fit)
 
-    def synchronize(self, transform, center):
+    def synchronize(self, transform, center, auto_fit=False):
         self._syncing = True
+        self._auto_fit = auto_fit
         self.setTransform(transform)
         self.centerOn(center)
         self._syncing = False

@@ -1,0 +1,2 @@
+# Research resources retain the exact bytes recorded in their provenance hashes.
+src/image_deconvolution/resources/samples/* -text

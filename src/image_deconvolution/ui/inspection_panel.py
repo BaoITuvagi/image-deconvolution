@@ -1,12 +1,9 @@
 """RL intermediate views and exploratory quality curves."""
 
-import math
-
-from PySide6.QtCharts import QChart, QChartView, QLineSeries
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QComboBox, QFormLayout, QLabel, QVBoxLayout, QWidget
 
 from image_deconvolution.ui.image_view import ImageView
+from image_deconvolution.ui.curve_plot import CurvePlot
 
 
 class InspectionPanel(QWidget):
@@ -34,11 +31,7 @@ class InspectionPanel(QWidget):
         layout.addWidget(self.range_info)
         self.view = ImageView()
         layout.addWidget(self.view, 2)
-        self.chart = QChart()
-        self.chart.setTitle("Selected full-image RL measurements")
-        self.chart_view = QChartView(self.chart)
-        self.chart_view.setMinimumHeight(240)
-        self.chart.legend().hide()
+        self.chart_view = CurvePlot()
         self.range_info.setWordWrap(True)
         layout.addWidget(self.chart_view, 1)
         self.iteration.currentIndexChanged.connect(self.show_phase)
@@ -61,24 +54,8 @@ class InspectionPanel(QWidget):
         self.show_phase()
 
     def show_curve(self, *_):
-        self.chart.removeAllSeries()
-        # Separate charts avoid placing SSIM and dB on a misleading common axis.
-        for axis in list(self.chart.axes()):
-            self.chart.removeAxis(axis)
-        if self.record is None:
-            return
         metric = self.metric_choice.currentText().lower()
-        series = QLineSeries()
-        series.setName("PSNR (dB)" if metric == "psnr" else "SSIM")
-        for row in self.record.curve:
-            if math.isfinite(row[metric]):
-                series.append(row["iteration"], row[metric])
-        self.chart.addSeries(series)
-        self.chart.createDefaultAxes()
-        for axis in self.chart.axes(Qt.Orientation.Horizontal):
-            axis.setTitleText("Iteration count")
-        for axis in self.chart.axes(Qt.Orientation.Vertical):
-            axis.setTitleText("PSNR (dB), fixed L" if metric == "psnr" else "SSIM")
+        self.chart_view.set_curve([] if self.record is None else self.record.curve, metric)
 
     def show_phase(self, *_):
         if self.record is None or self.iteration.currentData() is None or not self.phase.currentText():

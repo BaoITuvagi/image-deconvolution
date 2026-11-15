@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -96,15 +96,21 @@ class DesktopTests(unittest.TestCase):
         self.assertIsNone(self.window.worker, "Worker failed to finish")
 
     def test_load_run_stale_save_and_errors(self):
+        self.window.control_pages.setCurrentIndex(1)
         with patch("PySide6.QtWidgets.QMessageBox.warning") as warning:
             QTest.mouseClick(self.window.run_button, Qt.MouseButton.LeftButton)
             self.assertTrue(warning.called)
+        self.window.control_pages.setCurrentIndex(0)
         QTest.mouseClick(self.window.sample_button, Qt.MouseButton.LeftButton)
         self.assertEqual(self.window.observation.pixels.shape, (256, 256))
         QTest.mouseClick(self.window.run_button, Qt.MouseButton.LeftButton)
         self.assertFalse(self.window.controls.isEnabled())
         self.wait_for_worker()
         self.assertTrue(self.window.controls.isEnabled())
+        received_on = []
+        self.window.start_operation(lambda: "finished", lambda _: received_on.append(QThread.currentThread()))
+        self.wait_for_worker()
+        self.assertEqual(received_on, [self.app.thread()])
         self.assertIsNotNone(self.window.record)
         snapshot = self.window.record.output.copy()
         self.window.iterations.setValue(10)
@@ -143,6 +149,14 @@ class DesktopTests(unittest.TestCase):
         self.assertGreater(self.window.inspector.iteration.count(), 0)
         self.window.other_run.setCurrentIndex(1)
         self.assertIsNotNone(self.window.other_view.array)
+        self.window.input_view._auto_fit = False
+        self.window.input_view.scale(2, 2)
+        self.window.input_view._notify()
+        for view in self.window.views:
+            self.assertEqual(view.transform().m11(), self.window.input_view.transform().m11())
+            self.assertFalse(view._auto_fit)
+        self.window.fit_views()
+        self.assertTrue(all(v._auto_fit for v in self.window.views))
         self.window.method.setCurrentText("TRIF")
         self.window.sigma.setValue(3)
         np.testing.assert_array_equal(self.window.observation.pixels, original)
@@ -151,6 +165,9 @@ class DesktopTests(unittest.TestCase):
         self.window.clear_history()
         self.assertEqual(len(self.window.history), 0)
         self.assertIsNone(self.window.inspector.record)
+        self.window.method.setCurrentText("IF")
+        self.window.load_bars()
+        self.assertEqual(self.window.method.currentText(), "RL")
 
     def test_reference_and_export_reopen_workflow(self):
         self.window.verify_references()
@@ -172,3 +189,20 @@ class DesktopTests(unittest.TestCase):
             self.wait_for_worker()
             np.testing.assert_allclose(self.window.record.output, output, rtol=0, atol=1e-12)
         self.assertFalse(self.warning.called, str(self.warning.call_args))
+
+    def test_inspector_plot_renders_without_overriding_qt_metrics(self):
+        self.window.load_sample()
+        self.window.run_restoration()
+        self.wait_for_worker()
+        self.window.tabs.setCurrentIndex(1)
+        self.app.processEvents()
+        plot = self.window.inspector.chart_view
+        self.assertTrue(callable(plot.metric))
+        self.assertFalse(plot.grab().isNull())
+        view = self.window.inspector.view
+        mapped = view.mapFromScene(view.sceneRect()).boundingRect()
+        self.assertLessEqual(mapped.width(), view.viewport().width()+2)
+        self.assertLessEqual(mapped.height(), view.viewport().height()+2)
+        self.window.inspector.metric_choice.setCurrentText("SSIM")
+        self.app.processEvents()
+        self.assertFalse(plot.grab().isNull())
