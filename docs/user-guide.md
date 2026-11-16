@@ -14,23 +14,32 @@ RL inspector, and Saved references. Long sidebar sections can be scrolled.
 
 ## Restore a saved example
 
-1. In Inputs & simulation, click Load saved cells example. This opens the saved
+1. In Inputs & simulation, choose Cells — reference, RL 5 and click Load saved
+   example. This opens the saved
    degraded float TIFF, its matching sigma-2 PSF, and ground truth. It does not
    regenerate noise. The default example uses five RL iterations and L=1.
 2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.
    Gaussian sigma is used only when PSF is Gaussian. Imported centered PSFs are
    center-padded to image size and normalized to unit sum.
+   Inactive parameters are dimmed. Small decimal parameters use adaptive arrow
+   steps. To configure a three-method comparison, select each method and edit its
+   retained settings before clicking Compare.
 3. Click Run selected method or Compare IF, TRIF, and RL. Processing runs in a
    worker; the controls stay disabled until it finishes. The views remain usable.
 4. Select a history row with the mouse or arrow keys to inspect that run's
    original observation, ground truth, output, measurements, and configuration.
-   Display & history > Other output
-   selects a second result with identical observed pixels. An incompatible input
-   leaves the other-output pane empty. The four main views use one display range.
+   Two Additional results selectors above the images list only runs with identical
+   observed pixels. After a three-method comparison, all three outputs appear
+   immediately. The five views use one display range. Each output identifies its
+   method and parameters; the history table also identifies the input image.
    Loading a new image or editing ground truth shows the current inputs immediately
    and retains history. View current inputs returns to the next run's inputs at
    any time. History selection does not replace the controls for the next run;
    an earlier-configuration notice remains visible when appropriate.
+   Degraded-input and selected-output MSE/PSNR/SSIM use the same ground truth and
+   L. PSNR change is output minus input; a negative value means lower PSNR. These
+   exploratory results do not select benchmark parameters. Undefined infinity
+   differences show N/A.
 5. Click Save selected output TIFF to save float32 pixels, including negative
    values or values above 1. This rounds float64 to float32; it never saves the
    display screenshot. An existing file requires the native save dialog's
@@ -39,6 +48,7 @@ RL inspector, and Saved references. Long sidebar sections can be scrolled.
 History is limited to eight runs or approximately 256 MiB of counted input/output/
 checkpoint arrays, except a single larger run. Oldest entries are dropped first.
 History is in memory; export a needed run before closing or clearing it.
+Clear run history asks for confirmation and keeps saved files.
 
 ## Open your own images and simulate degradation
 
@@ -49,8 +59,12 @@ stacks are rejected. Convert them explicitly in an external tool first.
 Choose the loading policy before opening an image: Preserve values retains raw
 numerical intensities; Normalize unsigned integers to [0, 1] divides 8-/16-bit
 unsigned values by their dtype maximum. Float and signed inputs require Preserve
-values. Input information reports the applied policy and numerical range. No
-independent display scaling is applied to measurement arrays.
+values. The input tooltip reports the applied policy. On load, the shared display
+starts at the unsigned-integer scale (255 or 65535), or [0, 1] for normalized
+integers; other custom inputs use input min/max. Saved examples use [0, 1].
+This suggestion changes viewing only: numerical arrays and intensity L are kept.
+For preserved integers, explicitly set L to the image's declared scale, or reopen
+with normalization. Display & history can change the shared display range.
 
 Open optional ground truth uses the same loading policy. In Restoration, set
 Intensity range L to the ground truth's declared intensity scale (for example,
@@ -83,7 +97,7 @@ SSIM separately. Infinite PSNR is preserved in measurements but omitted from the
 finite plot. These curves are exploratory and do not replace independently
 selected benchmark parameters.
 
-Load saved bars example sets 100 iterations. Its quality can rise and later fall,
+The Bars — iteration study preset sets 100 iterations. Its quality can rise and later fall,
 illustrating why a sharper-looking late estimate need not have better PSNR/SSIM.
 Intermediate phases have their own clearly labeled display-only min/max range;
 comparison views retain the shared range. Zoom and pan affect inspection, not
@@ -105,6 +119,9 @@ and intact float output. All TIFFs and metadata are checked against recorded
 source hashes. The table separates max absolute difference/RMSE agreement from
 restoration quality. ImageJ MSE/PSNR columns are saved measurements; SSIM is
 calculated in Python. The signed difference image has its own labeled range.
+Show reference details expands the configuration/provenance and additional RMSE,
+saved ImageJ MSE, and Python SSIM of saved DL2 columns. The compact table keeps
+agreement and quality visible without the longer technical explanation.
 
 The largest reproduced absolute difference in the verified environment is
 8.104919255735865e-7. The 1e-6 baseline is configuration-specific. IF has not been
@@ -114,8 +131,9 @@ DeconvolutionLab2 or a new restoration algorithm is claimed.
 ## Export and reopen an experiment
 
 Select a history run, expand Experiment files, and choose Export selected
-experiment. In the save dialog, enter a **new folder name** inside an existing
-parent directory. Existing destinations are refused. The new folder contains:
+experiment. Choose an existing **parent folder**, then enter a **new folder name**
+in the second dialog. Canceling either dialog creates nothing. Existing
+destinations are refused. The new folder contains:
 
 - `experiment.json`: schema version, method parameters, scientific conventions,
   source identities/hashes, applicable noise settings and environment versions.
@@ -123,6 +141,8 @@ parent directory. Existing destinations are refused. The new folder contains:
   numerical input snapshots. These files are required to rerun the JSON.
 - `<method>_output.tif`: numerical float32 output without clipping/rescaling.
 - `measurements.csv` and, when available, `rl_curve.csv`: values from that run.
+  Measurements include the degraded-input baseline and PSNR change; JSON also
+  records the input measurements. CSV curve rows still describe updated RL estimates.
 
 Reopen experiment JSON checks the version, conventions, dimensions, and file/
 numerical hashes and restores the controls. If an input array has moved, locate

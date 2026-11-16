@@ -10,7 +10,8 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The local distribution is `dist/Image Deconvolution/`. Open
+The updated local distribution is `dist/review-fixes/Image Deconvolution/`;
+the earlier evaluation folder is retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
 This is an unsigned local evaluation build; no GitHub Release is published.
@@ -19,12 +20,16 @@ and [third-party notices](docs/third-party-notices.md).
 
 ## Features and quick demonstration
 
-1. Inputs & simulation > Load saved cells example opens saved float TIFF input,
+1. Inputs & simulation > Saved example > Cells — reference, RL 5 > Load saved
+   example opens saved float TIFF input,
    ground truth, and the matching PSF; it does not regenerate noise.
 2. Restoration > Compare IF, TRIF, and RL runs all methods on identical input in
-   a worker. The table shows full-image metrics and OTF/algorithm execution time.
-3. Select a history row and an Other output in Display & history. Scroll to zoom
-   and drag to pan the synchronized views, using one shared display range.
+   a worker and displays all three outputs. Degraded-input and restored metrics
+   share one ground truth/intensity scale; PSNR change makes improvements and
+   regressions explicit. The table records input identity and algorithm time.
+3. Select a history row with the mouse or arrow keys. Additional results selectors
+   above the views list matching inputs only. View current inputs returns to the
+   next run's workspace. Scroll to zoom and drag to pan the synchronized views.
 4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
    iterations when compatible ground truth exists. The saved bars example shows
    that late iterations can reduce quality.
@@ -65,7 +70,7 @@ backend is setuptools 82.0.1. Qt Charts is not used or bundled.
 .venv\Scripts\python.exe -m pip check
 .venv\Scripts\python.exe -B -m image_deconvolution --verify-workflow "new verification folder"
 .venv\Scripts\python.exe -m pip install -e ".[build]" -c packaging\build-constraints.txt
-.venv\Scripts\python.exe -B tools\build_windows.py
+.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/review-fixes
 ```
 
 The maintained tests cover numerical invariants, image/PSF validation, fixed
@@ -77,10 +82,11 @@ and denies Python socket connections during that run. The frozen executable
 supports the same command:
 
 ```powershell
-& ".\dist\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
+& ".\dist\review-fixes\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
 ```
 
-The builder refuses an existing distribution directory. Build tools are pinned
+The builder refuses an existing distribution directory; --dist-dir selects a new
+parent directory without replacing earlier builds. Build tools are pinned
 in `packaging/build-constraints.txt`. The folder build keeps Qt DLLs dynamically
 replaceable and includes third-party notices. Generated verification folders and
 intermediate builds are disposable; the final local distribution is retained.

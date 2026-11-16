@@ -14,7 +14,7 @@ import numpy as np
 from PIL import Image
 from PySide6.QtCore import QCoreApplication, QEvent, Qt, QThread
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from image_deconvolution.core.algorithms import otf, rl
 from image_deconvolution.experiments.runs import RunConfig, restore
@@ -97,13 +97,14 @@ class DesktopTests(unittest.TestCase):
         deadline = time.monotonic() + 20
         while self.window.worker is not None and time.monotonic() < deadline:
             self.app.processEvents()
-            QTest.qWait(10)
+            time.sleep(.002)  # Yield the GIL so the Python worker can make progress.
         self.assertIsNone(self.window.worker, "Worker failed to finish")
 
     def test_load_run_stale_save_and_errors(self):
         self.window.control_pages.setCurrentIndex(1)
+        self.assertFalse(self.window.run_button.isEnabled())
         with patch("PySide6.QtWidgets.QMessageBox.warning") as warning:
-            QTest.mouseClick(self.window.run_button, Qt.MouseButton.LeftButton)
+            self.window.run_restoration()
             self.assertTrue(warning.called)
         self.window.control_pages.setCurrentIndex(0)
         QTest.mouseClick(self.window.sample_button, Qt.MouseButton.LeftButton)
@@ -184,7 +185,18 @@ class DesktopTests(unittest.TestCase):
         output = self.window.record.output.copy()
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             folder = str(Path(directory) / "saved experiment")
-            with patch("PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(folder, "")):
+            record = self.window.record
+            with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=""), \
+                 patch("PySide6.QtWidgets.QInputDialog.getText") as ask_name:
+                self.window.export_experiment()
+                ask_name.assert_not_called()
+            with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=directory), \
+                 patch("PySide6.QtWidgets.QInputDialog.getText", return_value=("saved experiment", False)):
+                self.window.export_experiment()
+            self.assertIs(self.window.record, record)
+            self.assertFalse(Path(folder).exists())
+            with patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory", return_value=directory), \
+                 patch("PySide6.QtWidgets.QInputDialog.getText", return_value=("saved experiment", True)):
                 self.window.export_experiment()
             self.wait_for_worker()
             self.assertIn("Experiment saved:", self.window.statusBar().currentMessage())
@@ -246,8 +258,10 @@ class DesktopTests(unittest.TestCase):
     def test_truth_edits_refresh_without_discarding_history(self):
         self.window.set_observation(read_image(sample_path("cells_s2_p200_r0_input.tif")))
         truth_path = str(sample_path("cells_gt.tif"))
+        self.window.tabs.setCurrentIndex(1)
         with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName", return_value=(truth_path, "")):
             self.window.open_truth()
+        self.assertEqual(self.window.tabs.currentIndex(), 0)
         np.testing.assert_array_equal(self.window.truth_view.array, self.window.ground_truth.pixels)
         self.window.run_restoration()
         self.wait_for_worker()
@@ -285,3 +299,84 @@ class DesktopTests(unittest.TestCase):
         self.assertIn("cells / TRIF", self.window.reference_panel.detail.text())
         np.testing.assert_array_equal(self.window.reference_panel.python_view.array,
                                       self.window.reference_panel.rows[1]["record"].output)
+        self.assertTrue(self.window.reference_panel.table.isColumnHidden(3))
+        self.window.reference_panel.details.click()
+        self.assertFalse(self.window.reference_panel.table.isColumnHidden(3))
+        self.assertTrue(self.window.reference_panel.note.isVisible())
+
+    def test_contextual_controls_numeric_steps_and_saved_presets(self):
+        self.assertFalse(self.window.run_button.isEnabled())
+        self.assertFalse(self.window.simulate_button.isEnabled())
+        self.assertFalse(self.window.clear_history_button.isEnabled())
+        self.assertFalse(self.window.other_run.isEnabled())
+        self.assertFalse(self.window.third_run.isEnabled())
+        for index, (name, iterations) in enumerate([("cells", 5), ("bars", 100), ("fibers", 5), ("bars", 5)]):
+            self.window.saved_example.setCurrentIndex(index)
+            self.window.sample_button.click()
+            self.assertIn(name, self.window.observation.source)
+            self.assertEqual(self.window.iterations.value(), iterations)
+        self.assertTrue(self.window.run_button.isEnabled())
+        self.assertFalse(self.window.sigma.isEnabled())
+        self.assertFalse(self.window.threshold.isEnabled())
+        self.assertFalse(self.window.simulate_button.isEnabled())
+        self.window.method.setCurrentText("IF")
+        self.assertTrue(self.window.threshold.isEnabled())
+        self.assertFalse(self.window.epsilon.isEnabled())
+        self.assertFalse(self.window.capture.isEnabled())
+        for control in [self.window.epsilon, self.window.threshold, self.window.regularization]:
+            before = control.value()
+            control.stepUp()
+            self.assertGreater(control.value(), before)
+            self.assertLess(control.value(), 2*before)
+            control.stepDown()
+            self.assertAlmostEqual(control.value(), before, places=12)
+        self.window.psf_mode.setCurrentText("Gaussian")
+        self.assertTrue(self.window.sigma.isEnabled())
+        self.assertIn("Gaussian sigma=", self.window.psf_info.text())
+        self.window.psf_mode.setCurrentText("Imported PSF")
+        self.assertIn("psf_s2.tif", self.window.psf_info.text())
+
+    def test_preserved_integer_display_does_not_change_pixels_or_L(self):
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            path = Path(directory) / "ramp.png"
+            pixels = np.arange(256, dtype=np.uint8).reshape(16, 16)
+            Image.fromarray(pixels).save(path)
+            self.window.set_observation(read_image(path))
+            self.assertEqual(self.window.high.value(), 255)
+            self.assertEqual(self.window.data_range.value(), 1)
+            np.testing.assert_array_equal(self.window.observation.pixels, pixels)
+            displayed = self.window.input_view.scene().items()[0].pixmap().toImage()
+            self.assertEqual(displayed.pixelColor(0, 8).red(), 128)
+            self.window.set_observation(read_image(path, "normalize_integer"))
+            self.assertEqual(self.window.high.value(), 1)
+            np.testing.assert_array_equal(self.window.observation.pixels, pixels/255)
+
+    def test_comparison_baseline_filtered_choices_and_clear_confirmation(self):
+        self.window.load_sample()
+        self.window.compare_methods()
+        self.wait_for_worker()
+        record = self.window.record
+        self.assertIsNotNone(self.window.other_view.array)
+        self.assertIsNotNone(self.window.third_view.array)
+        methods = {record.config.method, self.window.other_run.currentData().config.method,
+                   self.window.third_run.currentData().config.method}
+        self.assertEqual(methods, {"IF", "TRIF", "RL"})
+        target = self.window.third_run.currentData()
+        index = next(i for i in range(self.window.other_run.count()) if self.window.other_run.itemData(i) is target)
+        self.window.other_run.setCurrentIndex(index)
+        self.assertIsNot(self.window.other_run.currentData(), self.window.third_run.currentData())
+        self.assertIn("Degraded input:", self.window.quality_info.text())
+        self.assertAlmostEqual(record.input_quality["psnr"], 31.300618881, places=7)
+        self.assertLess(record.psnr_change, 0)
+        with patch("PySide6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.No):
+            self.window.request_clear_history()
+        self.assertEqual(len(self.window.history), 3)
+        self.window.load_bars()
+        self.window.run_restoration()
+        self.wait_for_worker()
+        self.assertEqual(self.window.other_run.count(), 1)
+        self.assertIsNone(self.window.other_view.array)
+        with patch("PySide6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
+            self.window.request_clear_history()
+        self.assertEqual(self.window.history, [])
+        self.assertFalse(self.window.export_button.isEnabled())

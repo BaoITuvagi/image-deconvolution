@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtWidgets import QApplication, QFileDialog, QInputDialog
 
 from image_deconvolution.core.algorithms import otf, rl
 from image_deconvolution.experiments.export import environment_versions
@@ -57,7 +57,8 @@ def verify_desktop(destination):
     try:
         with patch.object(socket.socket, "connect", deny_network), patch.object(socket, "create_connection", deny_network):
             window.control_pages.setCurrentIndex(1)
-            window.run_button.click()
+            assert not window.run_button.isEnabled()
+            window.run_restoration()
             assert errors and "Open a degraded image" in errors[-1]
             errors.clear()
             checks.append("Missing observation rejected by the UI")
@@ -105,6 +106,9 @@ def verify_desktop(destination):
             wait()
             assert [r.config.method for r in window.history] == ["IF", "TRIF", "RL"]
             assert all(r.quality is not None for r in window.history)
+            assert all(r.input_quality is not None for r in window.history)
+            assert {window.record.config.method, window.other_run.currentData().config.method,
+                    window.third_run.currentData().config.method} == {"IF", "TRIF", "RL"}
             window.other_run.setCurrentIndex(2)
             assert window.other_view.array is not None
             checks.append("Explicit seeded degradation and three-method fixed-input comparison")
@@ -114,6 +118,7 @@ def verify_desktop(destination):
             window.run_button.click()
             wait()
             assert window.record.quality is None
+            assert window.record.input_quality is None
             checks.append("No quality measurement without ground truth")
 
             window.load_bars()
@@ -136,7 +141,8 @@ def verify_desktop(destination):
             wait()
             output = window.record.output.copy()
             bundle = root / "exported experiment"
-            with patch.object(QFileDialog, "getSaveFileName", return_value=(str(bundle), "")):
+            with patch.object(QFileDialog, "getExistingDirectory", return_value=str(root)), \
+                 patch.object(QInputDialog, "getText", return_value=(bundle.name, True)):
                 window.export_button.click()
             wait()
             assert (bundle / "experiment.json").is_file()
