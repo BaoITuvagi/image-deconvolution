@@ -71,12 +71,16 @@ def export_bundle(destination, record):
         created.append(measurements)
         with measurements.open("x", newline="", encoding="utf-8") as stream:
             columns = ["method", "iterations", "epsilon", "threshold", "regularization", "data_range",
-                       "algorithm_seconds", "mse", "psnr", "ssim", "metric_note"]
+                       "algorithm_seconds", "mse", "psnr", "ssim", "metric_note",
+                       "input_mse", "input_psnr", "input_ssim", "psnr_change_db"]
             writer = csv.DictWriter(stream, fieldnames=columns)
             writer.writeheader()
             row = {k: getattr(record.config, k) for k in columns[:6]}
             row.update(algorithm_seconds=record.seconds, metric_note=record.metric_note)
             row.update(record.quality or {})
+            row.update({f"input_{key}": value for key, value in (record.input_quality or {}).items()})
+            if record.psnr_change is not None:
+                row["psnr_change_db"] = record.psnr_change
             writer.writerow(row)
         curve = target / "rl_curve.csv"
         if record.curve:
@@ -88,6 +92,7 @@ def export_bundle(destination, record):
         configuration = {"schema_version": 1, "config": asdict(record.config), "inputs": inputs,
                          "conventions": CONVENTIONS, "degradation": record.degradation,
                          "environment": environment_versions(), "measurements": record.quality,
+                         "input_measurements": record.input_quality,
                          "output": {"file": output.name, "dtype": "float32", "rounding": "float64 to float32 only; no clipping",
                                     "file_sha256": hashlib.sha256(output.read_bytes()).hexdigest()},
                          "required_files": "Keep the three supplied .npy inputs (ground truth optional) with this JSON. Source arrays are exact float64 snapshots; TIFF output is rounded float32."}

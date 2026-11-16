@@ -43,9 +43,12 @@ class ExportReferenceTests(unittest.TestCase):
                 row = next(csv.DictReader(stream))
             for key in ["mse", "psnr", "ssim"]:
                 self.assertEqual(float(row[key]), record.quality[key])
+                self.assertEqual(float(row[f"input_{key}"]), record.input_quality[key])
+            self.assertEqual(float(row["psnr_change_db"]), record.psnr_change)
             data = json.loads(path.read_text())
             self.assertEqual(data["conventions"]["boundaries"], "circular")
             self.assertIn("numpy", data["environment"])
+            self.assertEqual(data["input_measurements"], record.input_quality)
 
     def test_missing_located_tampered_inputs_and_invalid_config(self):
         observation, psf, _ = research_example("bars")

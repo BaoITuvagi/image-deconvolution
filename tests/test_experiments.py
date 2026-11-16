@@ -51,6 +51,16 @@ class ExperimentTests(unittest.TestCase):
         self.assertAlmostEqual(unit["psnr"], scaled["psnr"])
         self.assertAlmostEqual(unit["ssim"], scaled["ssim"])
         self.assertAlmostEqual(unit["mse"]*255**2, scaled["mse"])
+        record = restore(self.observation, self.psf, RunConfig(5), self.truth)
+        self.assertEqual(record.input_quality, unit)
+        self.assertAlmostEqual(record.psnr_change, record.quality["psnr"]-unit["psnr"])
+        self.assertIsNone(restore(self.observation, self.psf, RunConfig(5)).input_quality)
+        zeros = ImageData(np.zeros((16, 16)), "perfect zero image")
+        delta = np.zeros((16, 16))
+        delta[8, 8] = 1
+        perfect = restore(zeros, ImageData(delta, "identity PSF"), RunConfig(1), zeros)
+        self.assertEqual(perfect.input_quality["psnr"], float("inf"))
+        self.assertIsNone(perfect.psnr_change)
 
     def test_trace_matches_baseline_and_intermediate_equations(self):
         y = self.observation.pixels
