@@ -2,8 +2,8 @@
 
 import numpy as np
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QImage, QPixmap, QPainter
-from PySide6.QtWidgets import QGraphicsView, QGraphicsScene
+from PySide6.QtGui import QImage, QPainter, QPixmap
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
 
 class ImageView(QGraphicsView):
@@ -31,8 +31,13 @@ class ImageView(QGraphicsView):
             return
         display = (np.clip((array - low) / (high - low), 0, 1) * 255).astype(np.uint8)
         height, width = display.shape
-        image = QImage(display.data, width, height, display.strides[0],
-                       QImage.Format.Format_Grayscale8).copy()
+        image = QImage(
+            display.data,
+            width,
+            height,
+            display.strides[0],
+            QImage.Format.Format_Grayscale8,
+        ).copy()
         self.scene().addPixmap(QPixmap.fromImage(image))
         self.setSceneRect(0, 0, width, height)
         if old_shape != array.shape:
@@ -64,7 +69,11 @@ class ImageView(QGraphicsView):
 
     def _notify(self):
         if not self._syncing:
-            self.navigated.emit(self.transform(), self.mapToScene(self.viewport().rect().center()), self._auto_fit)
+            self.navigated.emit(
+                self.transform(),
+                self.mapToScene(self.viewport().rect().center()),
+                self._auto_fit,
+            )
 
     def synchronize(self, transform, center, auto_fit=False):
         self._syncing = True

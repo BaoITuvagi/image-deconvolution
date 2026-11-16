@@ -2,8 +2,14 @@
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QGroupBox, QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
 from image_deconvolution.ui.image_view import ImageView
@@ -16,7 +22,11 @@ class ReferencePanel(QWidget):
         super().__init__()
         self.rows = []
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("New Python calculations against six saved DeconvolutionLab2 outputs. No ImageJ is executed."))
+        layout.addWidget(
+            QLabel(
+                "New Python calculations against six saved DeconvolutionLab2 outputs. No ImageJ is executed."
+            )
+        )
         self.note = QLabel(
             "Saved DeconvolutionLab2 references — this action does not run ImageJ. "
             "New Python results use saved float TIFF inputs, sigma-2 PSF normalized to 1, circular boundaries, "
@@ -37,8 +47,19 @@ class ReferencePanel(QWidget):
         controls.addWidget(self.details)
         layout.addLayout(controls)
         self.table = QTableWidget(0, 9)
-        self.table.setHorizontalHeaderLabels(["Image", "Method", "Max |difference|", "RMSE agreement",
-            "Python PSNR (dB)", "Python SSIM", "ImageJ MSE (saved)", "ImageJ PSNR (saved)", "DL2 SSIM (Python)"])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "Image",
+                "Method",
+                "Max |difference|",
+                "RMSE agreement",
+                "Python PSNR (dB)",
+                "Python SSIM",
+                "ImageJ MSE (saved)",
+                "ImageJ PSNR (saved)",
+                "DL2 SSIM (Python)",
+            ]
+        )
         for column in [3, 6, 8]:
             self.table.setColumnHidden(column, True)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -47,9 +68,16 @@ class ReferencePanel(QWidget):
         self.table.itemSelectionChanged.connect(self.selection_changed)
         layout.addWidget(self.table, 1)
         images = QHBoxLayout()
-        self.python_view, self.saved_view, self.diff_view = ImageView(), ImageView(), ImageView()
-        for title, view in [("New Python output [0, 1]", self.python_view), ("Saved DL2 output [0, 1]", self.saved_view),
-                            ("Signed difference (separate range)", self.diff_view)]:
+        self.python_view, self.saved_view, self.diff_view = (
+            ImageView(),
+            ImageView(),
+            ImageView(),
+        )
+        for title, view in [
+            ("New Python output [0, 1]", self.python_view),
+            ("Saved DL2 output [0, 1]", self.saved_view),
+            ("Signed difference (separate range)", self.diff_view),
+        ]:
             box = QGroupBox(title)
             box_layout = QVBoxLayout(box)
             box_layout.addWidget(view)
@@ -59,7 +87,9 @@ class ReferencePanel(QWidget):
                 if view is not other:
                     view.navigated.connect(other.synchronize)
         layout.addLayout(images, 2)
-        self.detail = QLabel("No new Python comparison yet. Select a row after comparison.")
+        self.detail = QLabel(
+            "No new Python comparison yet. Select a row after comparison."
+        )
         self.detail.setWordWrap(True)
         layout.addWidget(self.detail)
 
@@ -74,10 +104,25 @@ class ReferencePanel(QWidget):
         self.table.setRowCount(len(rows))
         for row, result in enumerate(rows):
             q = result["record"].quality
-            values = [result["image"], result["method"], result["max_abs"], result["rmse"], q["psnr"], q["ssim"],
-                      result["saved_imagej_mse"], result["saved_imagej_psnr"], result["reference_quality_python"]["ssim"]]
+            values = [
+                result["image"],
+                result["method"],
+                result["max_abs"],
+                result["rmse"],
+                q["psnr"],
+                q["ssim"],
+                result["saved_imagej_mse"],
+                result["saved_imagej_psnr"],
+                result["reference_quality_python"]["ssim"],
+            ]
             for column, value in enumerate(values):
-                self.table.setItem(row, column, QTableWidgetItem(value if isinstance(value, str) else f"{value:.9g}"))
+                self.table.setItem(
+                    row,
+                    column,
+                    QTableWidgetItem(
+                        value if isinstance(value, str) else f"{value:.9g}"
+                    ),
+                )
         self.table.resizeColumnsToContents()
         self.table.setCurrentCell(0, 0)
         self.table.selectRow(0)
@@ -98,6 +143,8 @@ class ReferencePanel(QWidget):
         bound = max(result["max_abs"], 1e-12)
         self.diff_view.set_image(result["difference"], -bound, bound)
         baseline = "within" if result["max_abs"] < 1e-6 else "outside"
-        self.detail.setText(f"{result['image']} / {result['method']}: max |difference|={result['max_abs']:.9g}, "
-                            f"RMSE={result['rmse']:.9g}. Signed display range [{-bound:.5g}, {bound:.5g}]. "
-                            f"{baseline.capitalize()} the recorded 1e-6 baseline for this configuration.")
+        self.detail.setText(
+            f"{result['image']} / {result['method']}: max |difference|={result['max_abs']:.9g}, "
+            f"RMSE={result['rmse']:.9g}. Signed display range [{-bound:.5g}, {bound:.5g}]. "
+            f"{baseline.capitalize()} the recorded 1e-6 baseline for this configuration."
+        )
