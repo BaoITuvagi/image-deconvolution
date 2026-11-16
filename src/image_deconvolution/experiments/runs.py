@@ -23,11 +23,19 @@ class RunConfig:
     def validate(self):
         if type(self.iterations) is not int or not 1 <= self.iterations <= 1000:
             raise ValueError("RL iterations must be an integer from 1 to 1000.")
-        if type(self.epsilon) not in {int, float} or not np.isfinite(self.epsilon) or self.epsilon <= 0:
+        if (
+            type(self.epsilon) not in {int, float}
+            or not np.isfinite(self.epsilon)
+            or self.epsilon <= 0
+        ):
             raise ValueError("Epsilon must be finite and positive.")
         if self.method not in {"RL", "IF", "TRIF"}:
             raise ValueError("Choose RL, thresholded IF, or zeroth-order TRIF.")
-        for name, value in [("IF threshold", self.threshold), ("TRIF lambda", self.regularization), ("Intensity range L", self.data_range)]:
+        for name, value in [
+            ("IF threshold", self.threshold),
+            ("TRIF lambda", self.regularization),
+            ("Intensity range L", self.data_range),
+        ]:
             if type(value) not in {int, float} or not np.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and positive.")
         if type(self.inspect) is not bool:
@@ -68,8 +76,14 @@ def restore(observation, psf, config, ground_truth=None, degradation=None):
     steps, curve = {}, []
     start = perf_counter()
     if config.method == "RL" and config.inspect:
-        output, steps, curve, seconds = trace_rl(observation.pixels, H, config.iterations,
-                                                config.epsilon, ground_truth, config.data_range)
+        output, steps, curve, seconds = trace_rl(
+            observation.pixels,
+            H,
+            config.iterations,
+            config.epsilon,
+            ground_truth,
+            config.data_range,
+        )
         seconds += otf_seconds
     else:
         if config.method == "RL":
@@ -80,30 +94,52 @@ def restore(observation, psf, config, ground_truth=None, degradation=None):
             output = tikhonov(observation.pixels, H, config.regularization)
         seconds = perf_counter() - start + otf_seconds
     if not np.isfinite(output).all():
-        raise ValueError("Restoration produced nonfinite values. Check inputs and parameters.")
+        raise ValueError(
+            "Restoration produced nonfinite values. Check inputs and parameters."
+        )
     output.setflags(write=False)
     values, note = quality(ground_truth, output, config.data_range)
     input_values, _ = quality(ground_truth, observation.pixels, config.data_range)
-    return RunRecord(observation, ImageData(h, psf.source, psf.policy, psf.file_sha256),
-                     config, output, seconds, ground_truth, values, note, steps, curve, degradation, input_values)
+    return RunRecord(
+        observation,
+        ImageData(h, psf.source, psf.policy, psf.file_sha256),
+        config,
+        output,
+        seconds,
+        ground_truth,
+        values,
+        note,
+        steps,
+        curve,
+        degradation,
+        input_values,
+    )
 
 
 def degrade(source, psf, photons, seed, data_range):
     """Generate Poisson observations explicitly; no restoration call regenerates noise."""
     if not np.isfinite(photons) or photons <= 0:
         raise ValueError("Photon level must be finite and positive.")
-    if type(seed) is not int or not 0 <= seed <= 2**32-1:
+    if type(seed) is not int or not 0 <= seed <= 2**32 - 1:
         raise ValueError("Seed must be an integer between 0 and 2^32-1.")
     if not np.isfinite(data_range) or data_range <= 0:
         raise ValueError("Intensity range L must be finite and positive.")
     if source.pixels.min() < 0 or source.pixels.max() > data_range:
-        raise ValueError("Source intensities must lie inside the declared [0, L] range.")
+        raise ValueError(
+            "Source intensities must lie inside the declared [0, L] range."
+        )
     h = prepare_psf(psf.pixels, source.pixels.shape)
     prediction = blur(source.pixels, otf(h))
     # Circular FFT may introduce tiny negative roundoff at theoretical zeros.
     rate = np.maximum(prediction / data_range, 0) * photons
     y = np.random.default_rng(seed).poisson(rate) / photons * data_range
-    configuration = {"model": "Poisson", "photons": photons, "seed": seed,
-                     "data_range": data_range, "boundaries": "circular",
-                     "source": source.identity(), "psf": ImageData(h, psf.source).identity()}
+    configuration = {
+        "model": "Poisson",
+        "photons": photons,
+        "seed": seed,
+        "data_range": data_range,
+        "boundaries": "circular",
+        "source": source.identity(),
+        "psf": ImageData(h, psf.source).identity(),
+    }
     return ImageData(y, f"Simulated from {source.source}; seed={seed}"), configuration

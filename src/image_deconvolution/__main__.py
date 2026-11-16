@@ -1,17 +1,21 @@
 """Launch with python -m image_deconvolution."""
 
-import sys
 import argparse
+import sys
 
 
 def main() -> int:
     """Create the desktop application and run its event loop."""
     parser = argparse.ArgumentParser(description="Offline desktop image deconvolution")
-    parser.add_argument("--verify-workflow", metavar="NEW_OUTPUT_DIRECTORY",
-                        help="Run repeatable desktop acceptance checks and write a report in a new folder")
+    parser.add_argument(
+        "--verify-workflow",
+        metavar="NEW_OUTPUT_DIRECTORY",
+        help="Run repeatable desktop acceptance checks and write a report in a new folder",
+    )
     arguments = parser.parse_args()
     if arguments.verify_workflow:
         from image_deconvolution.verification import verify_desktop
+
         return verify_desktop(arguments.verify_workflow)
     from PySide6.QtWidgets import QApplication
 

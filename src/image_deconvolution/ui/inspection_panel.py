@@ -2,8 +2,8 @@
 
 from PySide6.QtWidgets import QComboBox, QFormLayout, QLabel, QVBoxLayout, QWidget
 
-from image_deconvolution.ui.image_view import ImageView
 from image_deconvolution.ui.curve_plot import CurvePlot
+from image_deconvolution.ui.image_view import ImageView
 
 
 class InspectionPanel(QWidget):
@@ -44,7 +44,7 @@ class InspectionPanel(QWidget):
         self.phase.blockSignals(True)
         self.iteration.clear()
         self.phase.clear()
-        for iteration in (record.steps if record is not None else {}):
+        for iteration in record.steps if record is not None else {}:
             self.iteration.addItem(str(iteration), iteration)
         if record is not None and record.steps:
             self.phase.addItems(next(iter(record.steps.values())).keys())
@@ -55,12 +55,20 @@ class InspectionPanel(QWidget):
 
     def show_curve(self, *_):
         metric = self.metric_choice.currentText().lower()
-        self.chart_view.set_curve([] if self.record is None else self.record.curve, metric)
+        self.chart_view.set_curve(
+            [] if self.record is None else self.record.curve, metric
+        )
 
     def show_phase(self, *_):
-        if self.record is None or self.iteration.currentData() is None or not self.phase.currentText():
+        if (
+            self.record is None
+            or self.iteration.currentData() is None
+            or not self.phase.currentText()
+        ):
             self.view.set_image(None, 0, 1)
-            self.range_info.setText("Select an RL run with Capture RL steps enabled. Quality curves require suitable ground truth.")
+            self.range_info.setText(
+                "Select an RL run with Capture RL steps enabled. Quality curves require suitable ground truth."
+            )
             return
         iteration = self.iteration.currentData()
         array = self.record.steps[iteration][self.phase.currentText()]
@@ -68,6 +76,14 @@ class InspectionPanel(QWidget):
         if high <= low:
             high = low + 1
         self.view.set_image(array, low, high)
-        values = next((r for r in self.record.curve if r["iteration"] == iteration), None)
-        detail = "" if values is None else f"\nQuality of updated x(k+1), iteration {iteration}: PSNR {values['psnr']:.5g} dB; SSIM {values['ssim']:.6g}"
-        self.range_info.setText(f"Update {iteration}: x(k) is iteration {iteration-1}; updated x(k+1) is iteration {iteration}.\nDisplay-only phase range [{low:.5g}, {high:.5g}]{detail}")
+        values = next(
+            (r for r in self.record.curve if r["iteration"] == iteration), None
+        )
+        detail = (
+            ""
+            if values is None
+            else f"\nQuality of updated x(k+1), iteration {iteration}: PSNR {values['psnr']:.5g} dB; SSIM {values['ssim']:.6g}"
+        )
+        self.range_info.setText(
+            f"Update {iteration}: x(k) is iteration {iteration - 1}; updated x(k+1) is iteration {iteration}.\nDisplay-only phase range [{low:.5g}, {high:.5g}]{detail}"
+        )
