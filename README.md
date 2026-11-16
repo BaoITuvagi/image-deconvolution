@@ -63,6 +63,13 @@ are not needed. Runtime versions are pinned in `pyproject.toml`: NumPy 2.3.3,
 SciPy 1.16.2, Pillow 12.3.0, and PySide6 Essentials/Shiboken6 6.10.0. The build
 backend is setuptools 82.0.1. Qt Charts is not used or bundled.
 
+With `.venv` activated, apply automatic lint fixes and format code:
+
+```powershell
+ruff check --fix
+ruff format
+```
+
 ## Validate and build
 
 ```powershell
