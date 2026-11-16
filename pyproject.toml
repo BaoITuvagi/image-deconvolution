@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 build = ["pyinstaller==6.16.0"]
+dev = ["ruff"]
 
 [project.gui-scripts]
 image-deconvolution = "image_deconvolution.__main__:main"
