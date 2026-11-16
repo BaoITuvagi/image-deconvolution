@@ -69,5 +69,5 @@ class InspectionPanel(QWidget):
             high = low + 1
         self.view.set_image(array, low, high)
         values = next((r for r in self.record.curve if r["iteration"] == iteration), None)
-        detail = "" if values is None else f"; PSNR {values['psnr']:.5g} dB; SSIM {values['ssim']:.6g}"
+        detail = "" if values is None else f"\nQuality of updated x(k+1), iteration {iteration}: PSNR {values['psnr']:.5g} dB; SSIM {values['ssim']:.6g}"
         self.range_info.setText(f"Update {iteration}: x(k) is iteration {iteration-1}; updated x(k+1) is iteration {iteration}.\nDisplay-only phase range [{low:.5g}, {high:.5g}]{detail}")
