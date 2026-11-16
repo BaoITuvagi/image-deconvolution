@@ -47,6 +47,14 @@ class RunRecord:
     steps: dict = field(default_factory=dict)
     curve: list = field(default_factory=list)
     degradation: dict | None = None
+    input_quality: dict | None = None
+
+    @property
+    def psnr_change(self):
+        if self.quality is None or self.input_quality is None:
+            return None
+        change = self.quality["psnr"] - self.input_quality["psnr"]
+        return None if np.isnan(change) else change
 
 
 def restore(observation, psf, config, ground_truth=None, degradation=None):
@@ -75,8 +83,9 @@ def restore(observation, psf, config, ground_truth=None, degradation=None):
         raise ValueError("Restoration produced nonfinite values. Check inputs and parameters.")
     output.setflags(write=False)
     values, note = quality(ground_truth, output, config.data_range)
+    input_values, _ = quality(ground_truth, observation.pixels, config.data_range)
     return RunRecord(observation, ImageData(h, psf.source, psf.policy, psf.file_sha256),
-                     config, output, seconds, ground_truth, values, note, steps, curve, degradation)
+                     config, output, seconds, ground_truth, values, note, steps, curve, degradation, input_values)
 
 
 def degrade(source, psf, photons, seed, data_range):

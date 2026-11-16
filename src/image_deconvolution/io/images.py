@@ -20,6 +20,7 @@ class ImageData:
     source: str
     policy: str = "preserve"
     file_sha256: str | None = None
+    nominal_range: float | None = None
 
     def __post_init__(self):
         pixels = validate_image(self.pixels).copy()
@@ -65,8 +66,9 @@ def read_image(path, policy="preserve"):
         if raw.dtype.kind != "u":
             raise ValueError("Integer normalization requires an unsigned 8-bit or 16-bit image; use Preserve values for float or signed data.")
         pixels = pixels / np.iinfo(raw.dtype).max
+    nominal_range = (1.0 if policy == "normalize_integer" else float(np.iinfo(raw.dtype).max)) if raw.dtype.kind == "u" else None
     return ImageData(pixels, str(path.resolve()), policy,
-                     hashlib.sha256(path.read_bytes()).hexdigest())
+                     hashlib.sha256(path.read_bytes()).hexdigest(), nominal_range)
 
 
 def prepare_psf(array, shape):

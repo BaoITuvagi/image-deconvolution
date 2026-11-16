@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QComboBox, QGroupBox, QHBoxLayout, QLabel, QPushButton, QTableWidget,
+    QGroupBox, QHBoxLayout, QLabel, QPushButton, QTableWidget,
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -11,35 +11,36 @@ from image_deconvolution.ui.image_view import ImageView
 
 class ReferencePanel(QWidget):
     verify_requested = Signal()
-    load_requested = Signal(str)
 
     def __init__(self):
         super().__init__()
         self.rows = []
         layout = QVBoxLayout(self)
-        note = QLabel(
+        layout.addWidget(QLabel("New Python calculations against six saved DeconvolutionLab2 outputs. No ImageJ is executed."))
+        self.note = QLabel(
             "Saved DeconvolutionLab2 references — this action does not run ImageJ. "
             "New Python results use saved float TIFF inputs, sigma-2 PSF normalized to 1, circular boundaries, "
             "RL 5 iterations initialized from y, epsilon 1e-6, or TRIF lambda 0.1 (L=I). "
             "The saved plugin used Academic FFT, no padding/apodization and intact float output. "
             "Agreement (max absolute difference/RMSE) differs from restoration quality against ground truth. IF is not verified against a different plugin variant."
         )
-        note.setWordWrap(True)
-        layout.addWidget(note)
+        self.note.setWordWrap(True)
+        self.note.setVisible(False)
+        layout.addWidget(self.note)
         controls = QHBoxLayout()
-        self.example = QComboBox()
-        self.example.addItems(["cells", "bars", "fibers"])
-        controls.addWidget(self.example)
-        load = QPushButton("Load saved example into workspace")
-        load.clicked.connect(lambda: self.load_requested.emit(self.example.currentText()))
-        controls.addWidget(load)
         self.verify = QPushButton("Compare six saved RL / TRIF references")
         self.verify.clicked.connect(self.verify_requested.emit)
         controls.addWidget(self.verify)
+        self.details = QPushButton("Show reference details")
+        self.details.setCheckable(True)
+        self.details.toggled.connect(self.show_details)
+        controls.addWidget(self.details)
         layout.addLayout(controls)
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(["Image", "Method", "Max |difference|", "RMSE agreement",
-            "New Python PSNR", "New Python SSIM", "Saved ImageJ MSE", "Saved ImageJ PSNR", "Python SSIM of saved DL2"])
+            "Python PSNR (dB)", "Python SSIM", "ImageJ MSE (saved)", "ImageJ PSNR (saved)", "DL2 SSIM (Python)"])
+        for column in [3, 6, 8]:
+            self.table.setColumnHidden(column, True)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -61,6 +62,11 @@ class ReferencePanel(QWidget):
         self.detail = QLabel("No new Python comparison yet. Select a row after comparison.")
         self.detail.setWordWrap(True)
         layout.addWidget(self.detail)
+
+    def show_details(self, visible):
+        self.note.setVisible(visible)
+        for column in [3, 6, 8]:
+            self.table.setColumnHidden(column, not visible)
 
     def accept_rows(self, rows):
         self.rows = rows
@@ -94,5 +100,4 @@ class ReferencePanel(QWidget):
         baseline = "within" if result["max_abs"] < 1e-6 else "outside"
         self.detail.setText(f"{result['image']} / {result['method']}: max |difference|={result['max_abs']:.9g}, "
                             f"RMSE={result['rmse']:.9g}. Signed display range [{-bound:.5g}, {bound:.5g}]. "
-                            f"This result is {baseline} the recorded 1e-6 configuration-specific baseline; it is not a universal tolerance. "
-                            "ImageJ MSE/PSNR columns are saved measurements. All SSIM values here are calculated in Python.")
+                            f"{baseline.capitalize()} the recorded 1e-6 baseline for this configuration.")

@@ -1,6 +1,7 @@
 """Build the local Windows distribution with notices; do not publish it."""
 
 from importlib.metadata import distribution
+import argparse
 from pathlib import Path
 import shutil
 import subprocess
@@ -11,11 +12,16 @@ def main():
     if sys.platform != "win32":
         raise SystemExit("Build this distribution on 64-bit Windows with Python 3.13.")
     root = Path(__file__).resolve().parents[1]
-    output = root / "dist/Image Deconvolution"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dist-dir", type=Path, default=Path("dist"),
+                        help="Parent directory for a fresh Image Deconvolution folder; existing builds are kept")
+    arguments = parser.parse_args()
+    dist_root = (root / arguments.dist_dir).resolve()
+    output = dist_root / "Image Deconvolution"
     if output.exists():
         raise SystemExit("The distribution already exists. Preserve it or remove that exact task-created build before rebuilding.")
     subprocess.run([sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm",
-                    "--distpath", str(root / "dist"), "--workpath", str(root / "build/windows"),
+                    "--distpath", str(dist_root), "--workpath", str(root / "build/windows"),
                     str(root / "packaging/ImageDeconvolution.spec")], cwd=root, check=True)
     for name in ["README.md", "docs/user-guide.md", "docs/release-notes.md", "docs/attribution.md", "docs/third-party-notices.md", "docs/plan.md"]:
         target = output / name

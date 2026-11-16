@@ -3,6 +3,17 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 16, 2026 desktop review update corrects history selection, current-input
+preview, ground-truth refresh, persistent configuration notices, RL quality labels,
+and fitting across image tabs. I also consolidated saved examples, added compact
+adaptive numeric controls and contextual availability, and made three restoration
+outputs visible together with input quality and PSNR change. Preserved integer
+images receive display suggestions without changing measurement pixels or L.
+History clearing asks for confirmation; experiment export now selects a parent
+folder and a new folder name. Reference provenance and extra columns are expandable.
+The updated local folder is `dist/review-fixes/Image Deconvolution`; the original
+evaluation build is retained separately.
+
 Features include grayscale TIFF/PNG input with explicit intensity policies,
 Gaussian/imported centered PSFs, worker-based IF/TRIF/RL restoration, explicit
 seeded Poisson simulation, full-image quality metrics with compatible ground
@@ -28,17 +39,21 @@ blind deconvolution, or alternate boundary models. Another clean Windows machine
 has not been tested. Research redistribution rights are not established by
 attribution; keep this evaluation build local pending that confirmation.
 
-Validation on Windows 11 x64 (build 26200), Python 3.13.6: 26 regression checks
-passed, with eight affected I/O/desktop checks rerun after the final UI fixes.
-The source and final EXE passed all ten desktop acceptance groups. The frozen
-folder was tested outside the checkout in a path with spaces, with PATH limited
-to Windows and Python environment variables removed. Its built-in workflow
+Validation on Windows 11 x64 (build 26200), Python 3.13.6: all 32 numerical,
+I/O and Qt workflow regression checks passed. The source and updated EXE passed
+all ten desktop acceptance groups. The frozen app was tested from an empty
+working directory, with PATH limited to Windows and Python environment variables
+removed. Its built-in workflow
 verification denied Python socket connections and exited with code 0. This does
 not claim OS-level network isolation or testing on a separate clean machine.
-Native inspection also covered sample load, three-method comparison and
-synchronized zoom. The six saved-reference comparisons reproduced maximum
+Native inspection covered contextual controls, adaptive epsilon stepping,
+three-method comparison, canceling history deletion, the actual parent-folder/name
+export dialogs, JSON reopen and rerun. The 960 x 640 minimum layout was checked
+with all five image views available. The six saved-reference comparisons reproduced maximum
 absolute difference 8.104919255735865e-7; no ImageJ execution occurred.
 
-The final minimal-Qt build's native file dialog was opened and canceled. UI
-export/reopen destinations in the automated acceptance run were supplied by the
-driver; the file writes, validation, workers, views, and reruns were real.
+Automated acceptance supplies dialog destinations while exercising real file
+writes, validation, workers, views, and reruns. The separate native export test
+used the real dialogs; its numerical TIFF, CSV baseline and PSNR change matched
+the rerun. Qt test fixtures dispose windows on the GUI thread and yield the GIL
+while waiting for workers, avoiding cleanup aborts and artificial worker starvation.

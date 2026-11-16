@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout, QGroupBox, QGridLayout,
-    QHBoxLayout, QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox,
+    QHBoxLayout, QInputDialog, QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSpinBox,
     QSizePolicy, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem, QToolBox, QVBoxLayout, QWidget,
 )
 
@@ -16,11 +16,12 @@ from image_deconvolution.core.algorithms import psf_gaussian
 from image_deconvolution.experiments.runs import RunConfig, degrade, restore
 from image_deconvolution.experiments.export import MissingInput, export_bundle, load_bundle
 from image_deconvolution.experiments.reference import compare_references, research_example
-from image_deconvolution.io.images import ImageData, read_image, sample_path, save_tiff
+from image_deconvolution.io.images import ImageData, read_image, save_tiff
 from image_deconvolution.ui.image_view import ImageView
 from image_deconvolution.ui.inspection_panel import InspectionPanel
 from image_deconvolution.ui.reference_panel import ReferencePanel
 from image_deconvolution.ui.worker import ProcessingThread
+from image_deconvolution.ui.number_input import NumberInput
 
 
 class MainWindow(QMainWindow):
@@ -49,7 +50,14 @@ class MainWindow(QMainWindow):
         self.form.addRow("Loading policy", self.policy)
         self.load_button = self.button("Open degraded image…", self.open_observation)
         self.form.addRow(self.load_button)
-        self.sample_button = self.button("Load saved cells example", self.load_sample)
+        self.saved_example = QComboBox()
+        for title, preset in [("Cells — reference, RL 5", ("cells", 5)),
+                              ("Bars — iteration study, RL 100", ("bars", 100)),
+                              ("Fibers — reference, RL 5", ("fibers", 5)),
+                              ("Bars — reference, RL 5", ("bars", 5))]:
+            self.saved_example.addItem(title, preset)
+        self.form.addRow("Saved example", self.saved_example)
+        self.sample_button = self.button("Load saved example", self.load_selected_example)
         self.form.addRow(self.sample_button)
         self.input_info = QLabel("No image loaded.")
         self.input_info.setWordWrap(True)
@@ -59,7 +67,8 @@ class MainWindow(QMainWindow):
         self.form.addRow("PSF", self.psf_mode)
         self.sigma = self.number(0.1, 100, 2, 3)
         self.form.addRow("Gaussian sigma (px)", self.sigma)
-        self.form.addRow(self.button("Open PSF…", self.open_psf))
+        self.psf_button = self.button("Open PSF…", self.open_psf)
+        self.form.addRow(self.psf_button)
         self.psf_info = QLabel("Centered PSFs are normalized to unit sum.")
         self.psf_info.setWordWrap(True)
         self.form.addRow(self.psf_info)
@@ -93,29 +102,35 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         comparison = QWidget()
         images = QGridLayout(comparison)
+        self.image_layout = images
         self.input_view = ImageView()
         self.output_view = ImageView()
         self.truth_view = ImageView()
         self.other_view = ImageView()
-        self.views = [self.input_view, self.truth_view, self.output_view, self.other_view]
+        self.third_view = ImageView()
+        self.views = [self.input_view, self.truth_view, self.output_view, self.other_view, self.third_view]
         self.image_boxes = []
         for i, (title, view) in enumerate([
-            ("Selected run observation", self.input_view), ("Selected run ground truth", self.truth_view),
-            ("Selected restoration", self.output_view), ("Other history run (same input only)", self.other_view),
+            ("Current observation", self.input_view), ("Current ground truth", self.truth_view),
+            ("Selected restoration", self.output_view), ("Additional restoration", self.other_view),
+            ("Third restoration", self.third_view),
         ]):
             box = QGroupBox(title)
             self.image_boxes.append(box)
             layout = QVBoxLayout(box)
             layout.addWidget(view)
-            images.addWidget(box, i // 2, i % 2)
+            if i < 2:
+                images.addWidget(box, 0, i*3, 1, 3)
+            else:
+                images.addWidget(box, 1, (i-2)*2, 1, 2)
         for view in self.views:
             for other in self.views:
                 if view is not other:
                     view.navigated.connect(other.synchronize)
         compare_page = QSplitter(Qt.Orientation.Vertical)
         compare_page.addWidget(comparison)
-        self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(["Run / method", "Parameters", "Time (s)", "MSE", "PSNR (dB)", "SSIM", "Configuration"])
+        self.table = QTableWidget(0, 9)
+        self.table.setHorizontalHeaderLabels(["Run / method", "Input", "Parameters", "Time (s)", "MSE", "PSNR (dB)", "SSIM", "PSNR change (dB)", "Configuration"])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -133,6 +148,11 @@ class MainWindow(QMainWindow):
         context.addWidget(self.context_info, 1)
         context.addWidget(self.current_button)
         workspace_layout.addLayout(context)
+        self.comparison_choices = QHBoxLayout()
+        workspace_layout.addLayout(self.comparison_choices)
+        self.quality_info = QLabel("Quality: run a method with compatible ground truth to compare against the input.")
+        self.quality_info.setWordWrap(True)
+        workspace_layout.addWidget(self.quality_info)
         workspace_layout.addWidget(compare_page)
         self.tabs.addTab(workspace, "Compare && history")
         self.inspector = InspectionPanel()
@@ -151,9 +171,11 @@ class MainWindow(QMainWindow):
             signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self.mark_changed)
         self.setup_experiments()
+        self.comparison_choices.addWidget(QLabel("Additional results (same input)"))
+        self.comparison_choices.addWidget(self.other_run, 1)
+        self.comparison_choices.addWidget(self.third_run, 1)
         self.reference_panel = ReferencePanel()
         self.reference_panel.verify_requested.connect(self.verify_references)
-        self.reference_panel.load_requested.connect(self.load_research)
         self.tabs.addTab(self.reference_panel, "Saved references")
         self.export_button = self.button("Export selected experiment…", self.export_experiment)
         self.export_button.setEnabled(False)
@@ -165,21 +187,24 @@ class MainWindow(QMainWindow):
             label.setWordWrap(True)
             label.setSizePolicy(QSizePolicy.Policy.Preferred if label in field_labels else QSizePolicy.Policy.Ignored,
                                 QSizePolicy.Policy.Preferred)
-        for combo in self.controls.findChildren(QComboBox):
+        for combo in self.controls.findChildren(QComboBox) + [self.other_run, self.third_run]:
             combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
             combo.setMinimumContentsLength(10)
         self.organize_controls()
+        self.populate_comparison_choices()
+        self.update_controls()
+        self.refresh_views()
 
     def organize_controls(self):
         """Keep the complete workflow accessible without a single very long form."""
         groups = [
-            ("Inputs & simulation", ["policy", "Open degraded image…", "Load saved cells example", "Load saved bars example",
+            ("Inputs && simulation", ["policy", "Open degraded image…", "saved_example", "Load saved example",
                 "Open source for simulation…", "Open optional ground truth…", "Clear ground truth", "truth_info", "input_info",
-                "photons", "seed", "Generate / regenerate degradation"]),
-            ("Restoration", ["psf_mode", "sigma", "Open PSF…", "psf_info", "method", "threshold", "regularization",
+                "photons", "seed", "Generate / regenerate degradation", "simulation_note"]),
+            ("Restoration", ["psf_mode", "sigma", "Open PSF…", "psf_info", "method", "method_info", "threshold", "regularization",
                 "iterations", "epsilon", "data_range", "capture", "Run selected method", "Compare IF, TRIF, and RL",
                 "Save selected output TIFF…", "result_info"]),
-            ("Display & history", ["low", "high", "Apply shared display range", "Fit all images", "other_run", "Clear run history", "note"]),
+            ("Display && history", ["low", "high", "Apply shared display range", "Fit all images", "Clear run history", "note"]),
             ("Experiment files", ["Export selected experiment…", "Reopen experiment JSON…"]),
         ]
         rows = {}
@@ -187,12 +212,13 @@ class MainWindow(QMainWindow):
             taken = self.form.takeRow(0)
             widget = taken.fieldItem.widget()
             key = widget.text() if isinstance(widget, QPushButton) else next(
-                (name for name in ["policy", "truth_info", "input_info", "photons", "seed", "psf_mode", "sigma", "psf_info",
-                    "method", "threshold", "regularization", "iterations", "epsilon", "data_range", "capture", "result_info",
-                    "low", "high", "other_run"] if getattr(self, name) is widget), "note")
+                (name for name in ["policy", "saved_example", "simulation_note", "truth_info", "input_info", "photons", "seed", "psf_mode", "sigma", "psf_info",
+                    "method", "method_info", "threshold", "regularization", "iterations", "epsilon", "data_range", "capture", "result_info",
+                    "low", "high"] if getattr(self, name) is widget), "note")
             label = taken.labelItem.widget() if taken.labelItem is not None else None
             rows[key] = (label, widget)
         self.control_pages = QToolBox()
+        self.control_labels = {}
         for title, keys in groups:
             page = QWidget()
             layout = QFormLayout(page)
@@ -201,6 +227,8 @@ class MainWindow(QMainWindow):
             for key in keys:
                 label, widget = rows.pop(key)
                 layout.addRow(label, widget) if label is not None else layout.addRow(widget)
+                if label is not None:
+                    self.control_labels[widget] = label
             self.control_pages.addItem(page, title)
         if rows:
             raise RuntimeError(f"Unassigned workflow controls: {list(rows)}")
@@ -209,11 +237,11 @@ class MainWindow(QMainWindow):
     def setup_experiments(self):
         self.form.insertRow(3, self.button("Open source for simulation…", self.open_source))
         self.form.insertRow(4, self.button("Open optional ground truth…", self.open_truth))
-        self.form.insertRow(5, self.button("Clear ground truth", self.clear_truth))
+        self.clear_truth_button = self.button("Clear ground truth", self.clear_truth)
+        self.form.insertRow(5, self.clear_truth_button)
         self.truth_info = QLabel("No ground truth: quality metrics unavailable.")
         self.truth_info.setWordWrap(True)
         self.form.insertRow(6, self.truth_info)
-        self.form.insertRow(7, self.button("Load saved bars example", self.load_bars))
         self.photons = self.number(1, 1e8, 200, 2)
         self.seed = QSpinBox()
         self.seed.setRange(0, 2147483647)
@@ -221,48 +249,66 @@ class MainWindow(QMainWindow):
         self.form.addRow("Poisson photon level", self.photons)
         self.form.addRow("Noise seed", self.seed)
         self.form.addRow("Intensity range L", self.data_range)
-        self.form.addRow(self.button("Generate / regenerate degradation", self.simulate))
+        self.simulate_button = self.button("Generate / regenerate degradation", self.simulate)
+        self.form.addRow(self.simulate_button)
+        self.simulation_note = QLabel("Open a source to simulate. Photon level and seed apply only when Generate is clicked.")
+        self.form.addRow(self.simulation_note)
         self.method = QComboBox()
         self.method.addItems(["RL", "IF", "TRIF"])
+        for i, title in enumerate(["Richardson–Lucy", "Thresholded inverse filtering", "Zeroth-order Tikhonov (L = I)"]):
+            self.method.setItemData(i, title, Qt.ItemDataRole.ToolTipRole)
+        self.method.setToolTip("RL: Richardson–Lucy. IF: thresholded inverse filtering. TRIF: zeroth-order Tikhonov.")
         self.threshold = self.number(1e-9, 1, 0.01, 9)
         self.regularization = self.number(1e-12, 1e6, 0.1, 12)
         self.capture = QCheckBox("Capture RL steps")
         self.capture.setToolTip("Store at most eight checkpoints within 64 MiB. History retains at most eight runs or 256 MiB, except a single larger run.")
         self.capture.setChecked(True)
         self.form.addRow("Method", self.method)
+        self.method_info = QLabel("Richardson–Lucy")
+        self.form.addRow(self.method_info)
         self.form.addRow("IF OTF threshold", self.threshold)
         self.form.addRow("TRIF lambda (L = I)", self.regularization)
         self.form.addRow(self.capture)
         self.compare_button = self.button("Compare IF, TRIF, and RL", self.compare_methods)
+        self.compare_button.setToolTip("Uses each method's retained parameters. Select IF, TRIF, or RL to edit its settings before comparison.")
         self.form.addRow(self.compare_button)
         self.other_run = QComboBox()
-        self.form.addRow("Other output", self.other_run)
-        self.other_run.currentIndexChanged.connect(self.refresh_views)
-        self.form.addRow(self.button("Clear run history", self.clear_history))
+        self.third_run = QComboBox()
+        self.other_run.currentIndexChanged.connect(self.comparison_choice_changed)
+        self.third_run.currentIndexChanged.connect(self.comparison_choice_changed)
+        self.clear_history_button = self.button("Clear run history", self.request_clear_history)
+        self.form.addRow(self.clear_history_button)
         self.run_button.setText("Run selected method")
         for control in [self.method, self.threshold, self.regularization, self.data_range]:
             signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self.mark_changed)
         self.capture.toggled.connect(self.mark_changed)
 
-    def load_research(self, name):
+    def load_selected_example(self):
+        name, iterations = self.saved_example.currentData()
+        self.load_research(name, iterations)
+
+    def load_research(self, name, iterations=5):
         if self.worker is not None:
             return
         try:
             observation, psf, truth = research_example(name)
             self.imported_psf = psf
             self.psf_mode.setCurrentText("Imported PSF")
-            self.set_observation(observation)
+            self.set_observation(observation, (0, 1))
             self.ground_truth = truth
             self.method.setCurrentText("RL")
-            self.iterations.setValue(5)
+            self.iterations.setValue(iterations)
             self.epsilon.setValue(1e-6)
             self.regularization.setValue(.1)
+            self.threshold.setValue(.01)
+            self.capture.setChecked(True)
             self.data_range.setValue(1)
             self.low.setValue(0)
             self.high.setValue(1)
             self.psf_info.setText("Saved sigma-2 PSF. Unit normalization; circular boundaries.")
-            self.truth_info.setText(f"Saved {name} ground truth; fixed intensity range L=1.")
+            purpose = " Inspect early and late iterations." if iterations == 100 else ""
+            self.truth_info.setText(f"Saved {name} ground truth; L=1.{purpose}")
             self.mark_changed()
             self.refresh_views()
             self.tabs.setCurrentIndex(0)
@@ -277,8 +323,18 @@ class MainWindow(QMainWindow):
         if self.record is None:
             self.error("Select a restoration run first.")
             return
-        destination = QFileDialog.getSaveFileName(self, "New experiment folder (must not exist)", "experiment", "Folder name (*)")[0]
-        if destination:
+        parent = QFileDialog.getExistingDirectory(self, "Choose parent folder for the new experiment")
+        if not parent:
+            return
+        name, accepted = QInputDialog.getText(self, "New experiment", "New folder name (must not exist):", text="experiment")
+        if accepted:
+            reserved = {"CON", "PRN", "AUX", "NUL"} | {f"{prefix}{i}" for prefix in ["COM", "LPT"] for i in range(1, 10)}
+            if (not name.strip() or name != name.strip() or name in {".", ".."} or name.endswith(".")
+                    or name.split(".")[0].upper() in reserved
+                    or any(c in name for c in '<>:"/\\|?*') or any(ord(c) < 32 for c in name)):
+                self.error("Enter a single valid new folder name, without path separators or reserved characters.")
+                return
+            destination = Path(parent) / name
             record = self.record
             self.start_operation(lambda: export_bundle(destination, record),
                                  self.export_finished)
@@ -309,7 +365,7 @@ class MainWindow(QMainWindow):
                     if not located:
                         return
                     overrides[exc.role] = located
-            self.set_observation(images["observation"])
+            self.set_observation(images["observation"], (0, config.data_range))
             self.imported_psf = images["psf"]
             self.ground_truth = images["ground_truth"]
             self.degradation = degradation
@@ -342,6 +398,7 @@ class MainWindow(QMainWindow):
                 self.source = source
                 self.ground_truth = source
                 self.truth_info.setText("Source loaded. Click Generate / regenerate degradation explicitly.")
+                self.update_controls()
                 self.refresh_views()
             except Exception as exc:
                 self.error(exc)
@@ -374,10 +431,11 @@ class MainWindow(QMainWindow):
                 return observation, details, source
             def accept(result):
                 observation, details, truth = result
-                self.set_observation(observation)
+                self.set_observation(observation, (0, data_range))
                 self.source = self.ground_truth = truth
                 self.degradation = details
                 self.truth_info.setText(f"Simulated Poisson input; seed {seed}, photons {photons:g}. Ground truth retained.")
+                self.update_controls()
                 self.refresh_views()
             self.start_operation(operation, accept)
         except Exception as exc:
@@ -391,6 +449,7 @@ class MainWindow(QMainWindow):
         try:
             observation, psf = self.observation, self.current_psf()
             config, truth, degradation = self.current_config(), self.ground_truth, self.degradation
+            self.tabs.setCurrentIndex(0)
             self.start_operation(lambda: [restore(observation, psf, replace(config, method=method), truth, degradation)
                                           for method in ["IF", "TRIF", "RL"]], self.accept_many)
         except Exception as exc:
@@ -408,11 +467,20 @@ class MainWindow(QMainWindow):
         self.table.setRowCount(0)
         self.table.blockSignals(False)
         self.other_run.clear()
+        self.third_run.clear()
         self.show_current_inputs()
+
+    def request_clear_history(self):
+        if self.history and QMessageBox.question(self, "Clear run history?",
+                "Remove all in-memory runs? Export any results you need first. Saved files are kept.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
+            self.clear_history()
 
     def show_current_inputs(self):
         """Show the next run's inputs without discarding immutable history."""
         self.record = None
+        self.tabs.setCurrentIndex(0)
         self.table.blockSignals(True)
         self.table.clearSelection()
         self.table.setCurrentCell(-1, -1)
@@ -421,8 +489,11 @@ class MainWindow(QMainWindow):
         self.export_button.setEnabled(False)
         self.current_button.setEnabled(False)
         self.result_info.setText("Current inputs. Run a method or select a history row to view a result.")
+        self.quality_info.setText("Quality: run a method with compatible ground truth to compare against the input.")
         self.context_info.setText("Current inputs — controls configure the next run.")
         self.inspector.set_record(None)
+        self.populate_comparison_choices()
+        self.update_controls()
         self.refresh_views()
 
     def history_selection_changed(self):
@@ -447,7 +518,7 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def number(minimum, maximum, value, decimals=6):
-        spin = QDoubleSpinBox()
+        spin = NumberInput()
         spin.setDecimals(decimals)
         spin.setRange(minimum, maximum)
         spin.setValue(value)
@@ -468,14 +539,25 @@ class MainWindow(QMainWindow):
             except Exception as exc:
                 self.error(exc)
 
-    def set_observation(self, image):
+    def set_observation(self, image, display_range=None):
         self.observation = image
         self.ground_truth = self.source = self.degradation = None
         if hasattr(self, "truth_info"):
             self.truth_info.setText("No ground truth: quality metrics unavailable.")
         self.mark_changed()
         a = image.pixels
-        self.input_info.setText(f"{Path(image.source).name}\n{a.shape[1]} × {a.shape[0]}, float64 processing\nValues: {a.min():.6g} to {a.max():.6g}\nPolicy: {image.policy}")
+        if display_range is None:
+            display_range = ((0, image.nominal_range) if image.nominal_range is not None else
+                             (float(a.min()), float(a.max()) if a.max() > a.min() else float(a.min())+1))
+        self.low.setValue(display_range[0])
+        self.high.setValue(display_range[1])
+        if self.high.value() <= self.low.value():
+            self.high.setValue(self.low.value() + max(1e-6, abs(self.low.value())*1e-6))
+        scale_note = (f"\nImage scale [0, {image.nominal_range:g}]. Set intensity L to this scale for metrics; "
+                      "display suggestions do not change L." if image.nominal_range is not None else
+                      f"\nShared display [{self.low.value():g}, {self.high.value():g}]; intensity L is set separately.")
+        self.input_info.setText(f"{Path(image.source).name}\n{a.shape[1]} × {a.shape[0]}; values {a.min():.5g} to {a.max():.5g}" + scale_note)
+        self.input_info.setToolTip(f"Loading policy: {image.policy}. Processing uses float64 numerical pixels.")
         self.show_current_inputs()
 
     def open_psf(self):
@@ -490,52 +572,55 @@ class MainWindow(QMainWindow):
                 self.error(exc)
 
     def load_sample(self):
-        try:
-            self.method.setCurrentText("RL")
-            self.epsilon.setValue(1e-6)
-            self.capture.setChecked(True)
-            self.imported_psf = read_image(sample_path("psf_s2.tif"))
-            self.psf_mode.setCurrentText("Imported PSF")
-            self.iterations.setValue(5)
-            self.psf_info.setText("Saved sigma-2 PSF; normalized when run.")
-            self.low.setValue(0)
-            self.high.setValue(1)
-            self.set_observation(read_image(sample_path("cells_s2_p200_r0_input.tif")))
-            self.ground_truth = read_image(sample_path("cells_gt.tif"))
-            self.data_range.setValue(1)
-            self.truth_info.setText("Saved cells ground truth, normalized research range L=1.")
-            self.mark_changed()
-            self.refresh_views()
-        except Exception as exc:
-            self.error(exc)
+        self.load_research("cells")
 
     def load_bars(self):
-        try:
-            self.method.setCurrentText("RL")
-            self.epsilon.setValue(1e-6)
-            self.low.setValue(0)
-            self.high.setValue(1)
-            self.imported_psf = read_image(sample_path("psf_s2.tif"))
-            self.psf_mode.setCurrentText("Imported PSF")
-            self.set_observation(read_image(sample_path("bars_s2_p200_r0_input.tif")))
-            self.ground_truth = read_image(sample_path("bars_gt.tif"))
-            self.iterations.setValue(100)
-            self.data_range.setValue(1)
-            self.capture.setChecked(True)
-            self.psf_info.setText("Saved sigma-2 PSF; normalized when run.")
-            self.truth_info.setText("Saved bars ground truth, L=1. Inspect early and late iteration quality.")
-            self.mark_changed()
-            self.refresh_views()
-        except Exception as exc:
-            self.error(exc)
+        self.load_research("bars", 100)
 
     def mark_changed(self, *_):
         self.revision += 1
         if hasattr(self, "table"):
             for row in range(self.table.rowCount()):
-                self.table.setItem(row, 6, QTableWidgetItem("Earlier configuration"))
+                self.table.setItem(row, self.table.columnCount()-1, QTableWidgetItem("Earlier configuration"))
         if self.record is not None:
             self.update_result_info()
+        if hasattr(self, "clear_history_button"):
+            self.update_controls()
+
+    def update_controls(self):
+        gaussian = self.psf_mode.currentText() == "Gaussian"
+        ready = self.observation is not None and (gaussian or self.imported_psf is not None)
+        if gaussian:
+            self.psf_info.setText(f"Gaussian sigma={self.sigma.value():g} px; centered, unit-sum PSF.")
+        elif self.imported_psf is None:
+            self.psf_info.setText("Open a centered PSF to enable restoration.")
+        else:
+            self.psf_info.setText(f"{Path(self.imported_psf.source).name}; center-padded and normalized when run.")
+        method = self.method.currentText()
+        self.method_info.setText({"RL": "Richardson–Lucy", "IF": "Thresholded inverse filtering",
+                                  "TRIF": "Zeroth-order Tikhonov (identity regularizer)"}[method])
+        for control, enabled in [(self.sigma, gaussian), (self.threshold, method == "IF"),
+                (self.regularization, method == "TRIF"), (self.iterations, method == "RL"),
+                (self.epsilon, method == "RL"), (self.capture, method == "RL")]:
+            control.setEnabled(enabled)
+            label = getattr(self, "control_labels", {}).get(control)
+            if label is not None:
+                label.setEnabled(enabled)
+        for button in [self.run_button, self.compare_button]:
+            button.setEnabled(ready)
+        self.run_button.setToolTip("Run the selected method on the current inputs." if ready else
+                                   "Open an observation and choose a Gaussian or imported PSF first.")
+        self.simulate_button.setEnabled(ready and self.source is not None)
+        self.simulate_button.setToolTip("Use the current PSF and intensity L from Restoration." if self.source is not None else
+                                        "Open source for simulation first; saved examples are already degraded.")
+        self.photons.setEnabled(self.source is not None)
+        self.seed.setEnabled(self.source is not None)
+        self.clear_truth_button.setEnabled(self.ground_truth is not None)
+        self.clear_history_button.setEnabled(bool(self.history))
+        self.data_range.setToolTip("Declared intensity scale for simulation, PSNR and SSIM: 1 for normalized pixels, 255 for preserved 8-bit pixels. Viewing does not change this scale.")
+        self.save_button.setEnabled(self.record is not None)
+        if hasattr(self, "export_button"):
+            self.export_button.setEnabled(self.record is not None)
 
     def current_psf(self):
         if self.observation is None:
@@ -551,6 +636,7 @@ class MainWindow(QMainWindow):
         try:
             observation, psf = self.observation, self.current_psf()
             config, truth, degradation = self.current_config(), self.ground_truth, self.degradation
+            self.tabs.setCurrentIndex(0)
             self.start_operation(lambda: restore(observation, psf, config, truth, degradation), self.accept_record)
         except Exception as exc:
             self.error(exc)
@@ -583,6 +669,7 @@ class MainWindow(QMainWindow):
         worker.deleteLater()
         self.controls.setEnabled(True)
         self.reference_panel.setEnabled(True)
+        self.update_controls()
         self.statusBar().showMessage(self.completion_message)
 
     @Slot(str)
@@ -601,21 +688,21 @@ class MainWindow(QMainWindow):
             self.record_revisions.pop(id(dropped), None)
         self.table.blockSignals(True)
         self.table.setRowCount(len(self.history))
-        self.other_run.blockSignals(True)
-        self.other_run.clear()
-        self.other_run.addItem("None", None)
         for row, run in enumerate(self.history):
             config = run.config
             parameters = (f"n={config.iterations}, eps={config.epsilon:g}" if config.method == "RL" else
                           f"tau={config.threshold:g}" if config.method == "IF" else f"lambda={config.regularization:g}")
-            values = [f"{row+1}: {config.method}", parameters, f"{run.seconds:.6f}"]
-            values += ["N/A" if run.quality is None else f"{run.quality[key]:.7g}" for key in ["mse", "psnr", "ssim"]]
+            values = [f"{row+1}: {config.method}", Path(run.observation.source).name, parameters, f"{run.seconds:.4g}"]
+            values += ["N/A" if run.quality is None else f"{run.quality[key]:.5g}" for key in ["mse", "psnr", "ssim"]]
+            values += ["N/A" if run.psnr_change is None else f"{run.psnr_change:+.3f}"]
             values += ["Current snapshot" if self.record_revisions[id(run)] == self.revision else "Earlier configuration"]
             for col, value in enumerate(values):
-                self.table.setItem(row, col, QTableWidgetItem(value))
-            self.other_run.addItem(f"{row+1}: {config.method} ({parameters})", run)
-        self.other_run.blockSignals(False)
+                item = QTableWidgetItem(value)
+                item.setToolTip(value)
+                self.table.setItem(row, col, item)
         self.table.resizeColumnsToContents()
+        for column, maximum in [(1, 160), (2, 160), (8, 125)]:
+            self.table.setColumnWidth(column, min(self.table.columnWidth(column), maximum))
         self.table.setCurrentCell(len(self.history)-1, 0)
         self.table.selectRow(len(self.history)-1)
         self.table.blockSignals(False)
@@ -629,7 +716,50 @@ class MainWindow(QMainWindow):
         self.current_button.setEnabled(True)
         self.update_result_info()
         self.inspector.set_record(record)
+        self.populate_comparison_choices()
+        self.update_controls()
         self.refresh_views()
+
+    def populate_comparison_choices(self):
+        compatible = [] if self.record is None else [run for run in reversed(self.history)
+            if run is not self.record and self.same_observation(run, self.record)]
+        compatible.sort(key=lambda run: run.config.method == self.record.config.method)
+        chosen = []
+        for combo in [self.other_run, self.third_run]:
+            previous = combo.currentData()
+            selection = next((run for run in compatible if run is previous and all(run is not other for other in chosen)), None)
+            if selection is None:
+                available = [run for run in compatible if all(run is not other for other in chosen)]
+                different = [run for run in available if all(run.config.method != other.config.method for other in chosen)]
+                selection = next(iter(different or available), None)
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem("None", None)
+            for run in compatible:
+                number = next(i+1 for i, entry in enumerate(self.history) if entry is run)
+                combo.addItem(f"{number}: {run.config.method} ({self.run_parameters(run.config)})", run)
+            combo.setCurrentIndex(next((i+1 for i, run in enumerate(compatible) if run is selection), 0))
+            combo.blockSignals(False)
+            combo.setEnabled(bool(compatible))
+            combo.setToolTip("Only runs with identical observed pixels are listed. The two additional selections stay distinct; each output keeps its original parameters.")
+            if selection is not None:
+                chosen.append(selection)
+
+    def comparison_choice_changed(self, *_):
+        changed = self.sender()
+        other = self.third_run if changed is self.other_run else self.other_run
+        selected = changed.currentData() if isinstance(changed, QComboBox) else None
+        if selected is not None and other.currentData() is selected:
+            alternate = next((i for i in range(1, other.count()) if other.itemData(i) is not selected), 0)
+            other.blockSignals(True)
+            other.setCurrentIndex(alternate)
+            other.blockSignals(False)
+        self.refresh_views()
+
+    @staticmethod
+    def same_observation(first, second):
+        return first.observation.pixels.shape == second.observation.pixels.shape and np.array_equal(
+            first.observation.pixels, second.observation.pixels)
 
     @staticmethod
     def run_parameters(config):
@@ -644,7 +774,16 @@ class MainWindow(QMainWindow):
         c = record.config
         stale = self.record_revisions.get(id(record)) != self.revision
         warning = "Selected output belongs to an earlier configuration.\n" if stale else ""
-        self.result_info.setText(f"{warning}{c.method}: {self.run_parameters(c)}\nSource: {Path(record.observation.source).name}\n{record.seconds:.6f} s (OTF + algorithm only).\n{record.metric_note} Fixed intensity L={c.data_range:g}.")
+        self.result_info.setText(f"{warning}{c.method}: {self.run_parameters(c)}\nAlgorithm time: {record.seconds:.4g} s; intensity L={c.data_range:g}.")
+        self.result_info.setToolTip(f"Source: {record.observation.source}\nPSF: {record.psf.source}\n{record.metric_note}\nTiming includes OTF and restoration; excludes I/O, metrics, checkpoint copies and rendering.")
+        if record.quality is None:
+            self.quality_info.setText(f"Quality: N/A. {record.metric_note}")
+        else:
+            def summary(values):
+                return f"MSE {values['mse']:.5g}; PSNR {values['psnr']:.3f} dB; SSIM {values['ssim']:.5f}"
+            change = "N/A" if record.psnr_change is None else f"{record.psnr_change:+.3f} dB"
+            baseline = "N/A" if record.input_quality is None else summary(record.input_quality)
+            self.quality_info.setText(f"Degraded input: {baseline}\nSelected {c.method}: {summary(record.quality)}. PSNR change: {change}; fixed L={c.data_range:g}.")
         self.context_info.setText(f"History: {Path(record.observation.source).name} / {c.method}. "
                                  + ("Earlier configuration. " if stale else "")
                                  + "Controls configure the next run.")
@@ -661,20 +800,34 @@ class MainWindow(QMainWindow):
                                    self.low.value(), self.high.value())
         self.truth_view.set_image(None if truth is None else truth.pixels, self.low.value(), self.high.value())
         other = self.other_run.currentData() if hasattr(self, "other_run") else None
-        compatible = (other is not None and self.record is not None and
-                      other.observation.pixels.shape == self.record.observation.pixels.shape and
-                      np.array_equal(other.observation.pixels, self.record.observation.pixels))
+        compatible = other is not None and self.record is not None and self.same_observation(other, self.record)
         self.other_view.set_image(other.output if compatible else None, self.low.value(), self.high.value())
-        titles = (["Current observation", "Current ground truth", "No restoration selected", "Other history output"]
+        third = self.third_run.currentData() if hasattr(self, "third_run") else None
+        third_compatible = third is not None and self.record is not None and self.same_observation(third, self.record)
+        self.third_view.set_image(third.output if third_compatible else None, self.low.value(), self.high.value())
+        titles = (["Current observation", "Current ground truth", "No restoration selected", "Additional restoration", "Third restoration"]
                   if self.record is None else
                   [f"Observation: {Path(observation.source).name}", "Ground truth for selected run",
-                   f"{self.record.config.method}: {self.run_parameters(self.record.config)}", "Other history output"])
+                   f"{self.record.config.method}: {self.run_parameters(self.record.config)}", "Additional restoration", "Third restoration"])
         if compatible:
             titles[3] = f"{other.config.method}: {self.run_parameters(other.config)}"
         elif other is not None:
             titles[3] = "Other output unavailable: select a run with identical input"
+        if third_compatible:
+            titles[4] = f"{third.config.method}: {self.run_parameters(third.config)}"
         for box, title in zip(self.image_boxes, titles):
             box.setTitle(title)
+        output_boxes = self.image_boxes[2:]
+        visible = [self.record is not None, compatible, third_compatible]
+        count = sum(visible)
+        column = 0
+        for box, show in zip(output_boxes, visible):
+            self.image_layout.removeWidget(box)
+            box.setVisible(show)
+            if show:
+                span = 6 // count
+                self.image_layout.addWidget(box, 1, column, 1, span)
+                column += span
 
     def fit_views(self):
         for view in self.views + [self.inspector.view, self.reference_panel.python_view,
