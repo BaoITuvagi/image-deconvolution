@@ -3,6 +3,7 @@
 import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+import gc
 from pathlib import Path
 import tempfile
 import time
@@ -11,7 +12,7 @@ from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import QCoreApplication, QEvent, Qt, QThread
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
@@ -86,7 +87,11 @@ class DesktopTests(unittest.TestCase):
         if self.window.worker:
             self.wait_for_worker()
         self.window.close()
+        self.window.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         self.app.processEvents()
+        del self.window
+        gc.collect()
 
     def wait_for_worker(self):
         deadline = time.monotonic() + 20
@@ -206,3 +211,77 @@ class DesktopTests(unittest.TestCase):
         self.window.inspector.metric_choice.setCurrentText("SSIM")
         self.app.processEvents()
         self.assertFalse(plot.grab().isNull())
+
+    def test_keyboard_selection_export_and_current_inputs(self):
+        self.window.load_sample()
+        self.window.compare_methods()
+        self.wait_for_worker()
+        self.assertEqual(self.window.table.currentRow(), 2)
+        self.window.table.setFocus()
+        QTest.keyClick(self.window.table, Qt.Key.Key_Up)
+        self.assertIs(self.window.record, self.window.history[1])
+        self.assertEqual(self.window.record.config.method, "TRIF")
+        np.testing.assert_array_equal(self.window.output_view.array, self.window.history[1].output)
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            path = str(Path(directory) / "keyboard-selected.tif")
+            with patch("PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(path, "")):
+                self.window.save_output()
+            np.testing.assert_array_equal(read_image(path).pixels, self.window.history[1].output.astype(np.float32))
+        self.window.load_bars()
+        self.assertIsNone(self.window.record)
+        self.assertEqual(len(self.window.history), 3)
+        np.testing.assert_array_equal(self.window.input_view.array, self.window.observation.pixels)
+        np.testing.assert_array_equal(self.window.truth_view.array, self.window.ground_truth.pixels)
+        self.assertIsNone(self.window.output_view.array)
+        self.assertFalse(self.window.save_button.isEnabled())
+        self.assertFalse(self.window.export_button.isEnabled())
+        self.window.select_history(0)
+        self.window.select_history(1)
+        self.assertIn("earlier configuration", self.window.result_info.text())
+        self.window.current_button.click()
+        self.assertIsNone(self.window.record)
+        np.testing.assert_array_equal(self.window.input_view.array, self.window.observation.pixels)
+        self.assertEqual(len(self.window.history), 3)
+
+    def test_truth_edits_refresh_without_discarding_history(self):
+        self.window.set_observation(read_image(sample_path("cells_s2_p200_r0_input.tif")))
+        truth_path = str(sample_path("cells_gt.tif"))
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName", return_value=(truth_path, "")):
+            self.window.open_truth()
+        np.testing.assert_array_equal(self.window.truth_view.array, self.window.ground_truth.pixels)
+        self.window.run_restoration()
+        self.wait_for_worker()
+        self.window.clear_truth()
+        self.assertIsNone(self.window.record)
+        self.assertIsNone(self.window.truth_view.array)
+        self.assertIsNotNone(self.window.history[0].ground_truth)
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName", return_value=(truth_path, "")):
+            self.window.open_source()
+        np.testing.assert_array_equal(self.window.truth_view.array, self.window.source.pixels)
+
+    def test_inspector_quality_fit_and_reference_keyboard_selection(self):
+        self.window.load_sample()
+        self.window.run_restoration()
+        self.wait_for_worker()
+        panel = self.window.inspector
+        for index in range(panel.phase.count()):
+            panel.phase.setCurrentIndex(index)
+            self.assertIn("Quality of updated x(k+1), iteration 1", panel.range_info.text())
+        self.window.tabs.setCurrentIndex(1)
+        self.app.processEvents()
+        panel.view._auto_fit = False
+        panel.view.scale(3, 3)
+        zoomed = panel.view.transform().m11()
+        self.window.fit_views()
+        self.assertTrue(panel.view._auto_fit)
+        self.assertLess(panel.view.transform().m11(), zoomed)
+        self.window.verify_references()
+        self.wait_for_worker()
+        self.window.tabs.setCurrentIndex(2)
+        table = self.window.reference_panel.table
+        table.setFocus()
+        QTest.keyClick(table, Qt.Key.Key_Down)
+        self.assertEqual(table.currentRow(), 1)
+        self.assertIn("cells / TRIF", self.window.reference_panel.detail.text())
+        np.testing.assert_array_equal(self.window.reference_panel.python_view.array,
+                                      self.window.reference_panel.rows[1]["record"].output)

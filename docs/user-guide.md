@@ -22,10 +22,15 @@ RL inspector, and Saved references. Long sidebar sections can be scrolled.
    center-padded to image size and normalized to unit sum.
 3. Click Run selected method or Compare IF, TRIF, and RL. Processing runs in a
    worker; the controls stay disabled until it finishes. The views remain usable.
-4. Select a history row to inspect that run's original observation, ground truth,
-   output, measurements, and configuration. Display & history > Other output
+4. Select a history row with the mouse or arrow keys to inspect that run's
+   original observation, ground truth, output, measurements, and configuration.
+   Display & history > Other output
    selects a second result with identical observed pixels. An incompatible input
    leaves the other-output pane empty. The four main views use one display range.
+   Loading a new image or editing ground truth shows the current inputs immediately
+   and retains history. View current inputs returns to the next run's inputs at
+   any time. History selection does not replace the controls for the next run;
+   an earlier-configuration notice remains visible when appropriate.
 5. Click Save selected output TIFF to save float32 pixels, including negative
    values or values above 1. This rounds float64 to float32; it never saves the
    display screenshot. An existing file requires the native save dialog's
@@ -83,6 +88,9 @@ illustrating why a sharper-looking late estimate need not have better PSNR/SSIM.
 Intermediate phases have their own clearly labeled display-only min/max range;
 comparison views retain the shared range. Zoom and pan affect inspection, not
 the full-image measurement region.
+Fit all images resets the comparison, inspector, and saved-reference image views.
+The phase readout explicitly labels PSNR/SSIM as quality of the updated estimate,
+even when the displayed phase is the prediction, ratio, correction, or prior estimate.
 
 ## Compare saved DeconvolutionLab2 references
 

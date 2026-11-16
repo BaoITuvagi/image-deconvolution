@@ -42,7 +42,8 @@ class ReferencePanel(QWidget):
             "New Python PSNR", "New Python SSIM", "Saved ImageJ MSE", "Saved ImageJ PSNR", "Python SSIM of saved DL2"])
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.cellClicked.connect(self.select_row)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.itemSelectionChanged.connect(self.selection_changed)
         layout.addWidget(self.table, 1)
         images = QHBoxLayout()
         self.python_view, self.saved_view, self.diff_view = ImageView(), ImageView(), ImageView()
@@ -63,6 +64,7 @@ class ReferencePanel(QWidget):
 
     def accept_rows(self, rows):
         self.rows = rows
+        self.table.blockSignals(True)
         self.table.setRowCount(len(rows))
         for row, result in enumerate(rows):
             q = result["record"].quality
@@ -71,7 +73,15 @@ class ReferencePanel(QWidget):
             for column, value in enumerate(values):
                 self.table.setItem(row, column, QTableWidgetItem(value if isinstance(value, str) else f"{value:.9g}"))
         self.table.resizeColumnsToContents()
+        self.table.setCurrentCell(0, 0)
+        self.table.selectRow(0)
+        self.table.blockSignals(False)
         self.select_row(0)
+
+    def selection_changed(self):
+        rows = self.table.selectionModel().selectedRows()
+        if rows:
+            self.select_row(rows[0].row())
 
     def select_row(self, row, _column=0):
         if not 0 <= row < len(self.rows):
