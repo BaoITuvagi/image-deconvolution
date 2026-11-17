@@ -80,9 +80,17 @@ N/A with an explanation if truth is missing, dimensions differ, either dimension
 does not exceed 10, or truth lies outside [0, L]. Clear ground truth removes it
 for subsequent runs; historical measurements retain their original truth.
 
-For simulation, Open source for simulation loads an undegraded source. Configure
-the PSF, photon level, seed, and L, then explicitly click Generate / regenerate
-degradation. The model is circular blur followed by Poisson sampling of
+For simulation, Open source for simulation loads an undegraded source into
+Current ground truth only. Current observation stays empty with a Generate prompt;
+Run selected method and Compare remain disabled. Opening a new source clears the
+current observation and restoration preview while retaining history. Historical
+runs can still be inspected; View current inputs returns to the pending source.
+Configure the PSF, photon level, seed, and L, then explicitly click Generate /
+regenerate degradation. On success, Current observation shows the degraded image,
+the source stays as ground truth, and restoration becomes available. If generation
+fails, no observation is created and the source remains available for correction.
+Saved examples and Open degraded image provide observations immediately.
+The model is circular blur followed by Poisson sampling of
 `max(blur(source)/L, 0) * photons`, scaled back by `L/photons`. The maximum only
 removes tiny negative FFT roundoff at theoretical zeros. The source must lie in
 [0, L]. Changing method parameters, sigma, photon level, or seed alone never

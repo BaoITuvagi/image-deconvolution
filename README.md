@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/sidebar-layout/Image Deconvolution/`;
+The updated local distribution is `dist/source-generation/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -41,7 +41,10 @@ and [third-party notices](docs/third-party-notices.md).
    JSON bundle with exact input arrays, hashes, CSV measurements, and conventions.
 
 The app also opens single grayscale TIFF/PNG files, generates or imports centered
-normalized PSFs, and simulates seeded Poisson degradation explicitly. Integer
+normalized PSFs, and simulates seeded Poisson degradation explicitly.
+Opening a clean source shows it only as ground truth; the observation stays empty
+and restoration is disabled until Generate succeeds. Opening another source clears
+the current observation/output preview while retaining run history. Integer
 conversion and intensity range L are explicit. Without suitable ground truth,
 quality measurements are unavailable with a reason. Parameter edits never
 regenerate the observation or relabel a historical output.
@@ -78,7 +81,7 @@ ruff format
 .venv\Scripts\python.exe -m pip check
 .venv\Scripts\python.exe -B -m image_deconvolution --verify-workflow "new verification folder"
 .venv\Scripts\python.exe -m pip install -e ".[build]" -c packaging\build-constraints.txt
-.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/sidebar-layout
+.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/source-generation
 ```
 
 The maintained tests cover numerical invariants, image/PSF validation, fixed
@@ -90,7 +93,7 @@ and denies Python socket connections during that run. The frozen executable
 supports the same command:
 
 ```powershell
-& ".\dist\sidebar-layout\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
+& ".\dist\source-generation\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
 ```
 
 The builder refuses an existing distribution directory; --dist-dir selects a new

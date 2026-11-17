@@ -416,6 +416,148 @@ class DesktopTests(unittest.TestCase):
                         ),
                     )
 
+    def test_source_waits_for_generation_without_discarding_history(self):
+        self.window.load_sample()
+        self.window.run_restoration()
+        self.wait_for_worker()
+        previous = self.window.record
+        pixels = np.linspace(0.2, 0.8, 16 * 24).reshape(16, 24)
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            path = Path(directory) / "clean source.tif"
+            save_tiff(path, pixels)
+            with patch.object(self.window, "choose_image", return_value=str(path)):
+                self.window.open_source()
+            source = self.window.source
+            self.assertIsNone(self.window.observation)
+            self.assertIsNone(self.window.degradation)
+            self.assertIsNone(self.window.input_view.array)
+            self.assertIsNone(self.window.output_view.array)
+            self.assertIsNone(self.window.record)
+            self.assertIsNone(self.window.inspector.record)
+            self.assertTrue(self.window.observation_prompt.isVisible())
+            self.app.processEvents()
+            self.assertIs(
+                self.window.input_display.currentWidget(),
+                self.window.observation_prompt,
+            )
+            self.assertTrue(
+                self.window.input_display.rect().contains(
+                    self.window.observation_prompt.geometry()
+                )
+            )
+            np.testing.assert_array_equal(self.window.truth_view.array, source.pixels)
+            self.assertIn(
+                "Source file: clean source.tif", self.window.input_info.text()
+            )
+            self.assertFalse(self.window.run_button.isEnabled())
+            self.assertFalse(self.window.compare_button.isEnabled())
+            self.assertFalse(self.window.save_button.isEnabled())
+            self.assertEqual(self.window.history, [previous])
+
+            self.window.select_history(0)
+            self.assertFalse(self.window.observation_prompt.isVisible())
+            np.testing.assert_array_equal(
+                self.window.input_view.array, previous.observation.pixels
+            )
+            self.window.current_button.click()
+            self.assertIsNone(self.window.input_view.array)
+            np.testing.assert_array_equal(self.window.truth_view.array, source.pixels)
+            self.assertTrue(self.window.observation_prompt.isVisible())
+
+            self.window.psf_mode.setCurrentText("Gaussian")
+            self.window.sigma.setValue(1)
+            self.window.photons.setValue(180)
+            self.window.seed.setValue(18)
+            self.assertTrue(self.window.simulate_button.isEnabled())
+            self.assertIsNone(self.window.observation)
+            for action in (self.window.run_restoration, self.window.compare_methods):
+                self.warning.reset_mock()
+                action()
+                self.assertIsNone(self.window.worker)
+                self.assertIn("Generate degradation", str(self.warning.call_args))
+
+            # A failed simulation must leave the source awaiting Generate.
+            self.window.data_range.setValue(0.1)
+            self.window.simulate_button.click()
+            self.wait_for_worker()
+            self.assertIsNone(self.window.observation)
+            self.assertIsNone(self.window.input_view.array)
+            self.assertTrue(self.window.observation_prompt.isVisible())
+            self.assertFalse(self.window.run_button.isEnabled())
+            self.assertFalse(self.window.compare_button.isEnabled())
+            self.assertTrue(self.window.simulate_button.isEnabled())
+
+            self.window.data_range.setValue(1)
+            self.window.simulate_button.click()
+            self.wait_for_worker()
+            self.assertEqual(self.window.observation.pixels.shape, (16, 24))
+            self.assertEqual(self.window.current_psf().pixels.shape, (16, 24))
+            self.assertFalse(self.window.observation_prompt.isVisible())
+            self.assertTrue(self.window.run_button.isEnabled())
+            self.assertTrue(self.window.compare_button.isEnabled())
+            self.assertIs(
+                self.window.input_display.currentWidget(), self.window.input_view
+            )
+            np.testing.assert_array_equal(self.window.truth_view.array, source.pixels)
+            np.testing.assert_array_equal(
+                self.window.input_view.array, self.window.observation.pixels
+            )
+            observed = self.window.observation.pixels.copy()
+            self.window.seed.setValue(19)
+            self.window.photons.setValue(200)
+            self.window.sigma.setValue(2)
+            np.testing.assert_array_equal(self.window.observation.pixels, observed)
+            self.assertIs(self.window.source, source)
+            self.assertEqual(self.window.history, [previous])
+
+    def test_pending_source_with_imported_psf_and_observation_loading(self):
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
+        ):
+            self.window.open_source()
+        self.window.psf_mode.setCurrentText("Imported PSF")
+        self.assertFalse(self.window.simulate_button.isEnabled())
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))
+        ):
+            self.window.open_psf()
+        self.assertTrue(self.window.simulate_button.isEnabled())
+        self.assertFalse(self.window.run_button.isEnabled())
+        self.window.simulate_button.click()
+        self.wait_for_worker()
+        self.assertTrue(self.window.run_button.isEnabled())
+        self.assertIsNotNone(self.window.observation)
+
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("bars_gt.tif"))
+        ):
+            self.window.open_source()
+        self.assertIsNone(self.window.input_view.array)
+        with patch.object(self.window, "choose_image", return_value=""):
+            self.window.open_source()
+        self.assertIsNone(self.window.observation)
+        self.assertIn("bars_gt.tif", self.window.source.source)
+        self.window.load_sample()
+        self.assertIsNone(self.window.source)
+        self.assertFalse(self.window.observation_prompt.isVisible())
+        self.assertTrue(self.window.run_button.isEnabled())
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("bars_gt.tif"))
+        ):
+            self.window.open_source()
+        with patch.object(
+            self.window,
+            "choose_image",
+            return_value=str(sample_path("cells_s2_p200_r0_input.tif")),
+        ):
+            self.window.open_observation()
+        self.assertIsNone(self.window.source)
+        self.assertFalse(self.window.observation_prompt.isVisible())
+        self.assertTrue(self.window.run_button.isEnabled())
+        np.testing.assert_array_equal(
+            self.window.input_view.array, self.window.observation.pixels
+        )
+
     def test_sidebar_fields_stay_inline_and_input_information_follows_actions(self):
         # Cover the startup width and the minimum supported window without
         # widening the sidebar to reveal a label or its control.

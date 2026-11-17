@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QSplitter,
+    QStackedWidget,
     QStyle,
     QTableWidget,
     QTableWidgetItem,
@@ -157,6 +158,14 @@ class MainWindow(QMainWindow):
         images = QGridLayout(comparison)
         self.image_layout = images
         self.input_view = ImageView()
+        self.observation_prompt = QLabel(
+            "Generate degradation to create an observation."
+        )
+        self.observation_prompt.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.observation_prompt.setWordWrap(True)
+        self.input_display = QStackedWidget()
+        self.input_display.addWidget(self.input_view)
+        self.input_display.addWidget(self.observation_prompt)
         self.output_view = ImageView()
         self.truth_view = ImageView()
         self.other_view = ImageView()
@@ -181,7 +190,7 @@ class MainWindow(QMainWindow):
             box = QGroupBox(title)
             self.image_boxes.append(box)
             layout = QVBoxLayout(box)
-            layout.addWidget(view)
+            layout.addWidget(self.input_display if view is self.input_view else view)
             if i < 2:
                 images.addWidget(box, 0, i * 3, 1, 3)
             else:
@@ -683,14 +692,14 @@ class MainWindow(QMainWindow):
         if path:
             try:
                 source = read_image(path, self.policy.currentData())
-                self.set_observation(source)
-                self.source = source
-                self.ground_truth = source
+                self.observation = self.degradation = None
+                self.source = self.ground_truth = source
+                self.mark_changed()
+                self.update_input_details(source)
                 self.truth_info.setText(
                     "Source loaded. Click Generate / regenerate degradation explicitly."
                 )
-                self.update_controls()
-                self.refresh_views()
+                self.show_current_inputs()
             except (OSError, ValueError, DecompressionBombError) as exc:
                 self.error(exc)
 
@@ -717,7 +726,7 @@ class MainWindow(QMainWindow):
         try:
             if self.source is None:
                 raise ValueError("Open a source image for simulation first.")
-            source, psf = self.source, self.current_psf()
+            source, psf = self.source, self.current_psf(self.source)
             photons, seed, data_range = (
                 self.photons.value(),
                 self.seed.value(),
@@ -819,13 +828,22 @@ class MainWindow(QMainWindow):
         self.save_button.setEnabled(False)
         self.export_button.setEnabled(False)
         self.current_button.setEnabled(False)
+        pending_source = self.source is not None and self.observation is None
         self.result_info.setText(
-            "Current inputs. Run a method or select a history row to view a result."
+            "Generate degradation before running restoration."
+            if pending_source
+            else "Current inputs. Run a method or select a history row to view a result."
         )
         self.quality_info.setText(
-            "Quality: run a method with compatible ground truth to compare against the input."
+            "Quality: generate an observation, then run restoration."
+            if pending_source
+            else "Quality: run a method with compatible ground truth to compare against the input."
         )
-        self.context_info.setText("Current inputs — controls configure the next run.")
+        self.context_info.setText(
+            "Source loaded — generate degradation to create an observation."
+            if pending_source
+            else "Current inputs — controls configure the next run."
+        )
         self.inspector.set_record(None)
         self.populate_comparison_choices()
         self.update_controls()
@@ -882,6 +900,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, "truth_info"):
             self.truth_info.setText("No ground truth: quality metrics unavailable.")
         self.mark_changed()
+        self.update_input_details(image, display_range)
+        self.show_current_inputs()
+
+    def update_input_details(self, image, display_range=None):
+        """Describe source or observation pixels without changing their input role."""
         a = image.pixels
         if display_range is None:
             display_range = (
@@ -903,14 +926,18 @@ class MainWindow(QMainWindow):
             if image.nominal_range is not None
             else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nIntensity L is set in Restoration."
         )
+        role = (
+            "Source file"
+            if self.source is image and self.observation is None
+            else "File"
+        )
         self.input_info.setText(
-            f"File: {Path(image.source).name}\nSize: {a.shape[1]} × {a.shape[0]} px\nPixel values: {a.min():.5g} to {a.max():.5g}"
+            f"{role}: {Path(image.source).name}\nSize: {a.shape[1]} × {a.shape[0]} px\nPixel values: {a.min():.5g} to {a.max():.5g}"
             + scale_note
         )
         self.input_info.setToolTip(
             f"Loading policy: {image.policy}. Processing uses float64 numerical pixels."
         )
-        self.show_current_inputs()
 
     def open_psf(self):
         path = self.choose_image("Open centered PSF")
@@ -947,9 +974,8 @@ class MainWindow(QMainWindow):
 
     def update_controls(self):
         gaussian = self.psf_mode.currentText() == "Gaussian"
-        ready = self.observation is not None and (
-            gaussian or self.imported_psf is not None
-        )
+        psf_ready = gaussian or self.imported_psf is not None
+        ready = self.observation is not None and psf_ready
         if gaussian:
             self.psf_info.setText(
                 f"Gaussian sigma={self.sigma.value():g} px; centered, unit-sum PSF."
@@ -985,9 +1011,11 @@ class MainWindow(QMainWindow):
         self.run_button.setToolTip(
             "Run the selected method on the current inputs."
             if ready
+            else "Generate degradation before running restoration."
+            if self.source is not None and self.observation is None
             else "Open an observation and choose a Gaussian or imported PSF first."
         )
-        self.simulate_button.setEnabled(ready and self.source is not None)
+        self.simulate_button.setEnabled(psf_ready and self.source is not None)
         self.simulate_button.setToolTip(
             "Use the current PSF and intensity L from Restoration."
             if self.source is not None
@@ -995,6 +1023,13 @@ class MainWindow(QMainWindow):
         )
         self.photons.setEnabled(self.source is not None)
         self.seed.setEnabled(self.source is not None)
+        self.simulation_note.setText(
+            "Open a source to simulate. Photon level and seed apply only when Generate is clicked."
+            if self.source is None
+            else "Adjust the PSF, photon level, seed and L, then click Generate."
+            if self.observation is None
+            else "Click Generate to apply changed simulation settings. Restoration uses the current observation."
+        )
         self.clear_truth_button.setEnabled(self.ground_truth is not None)
         self.clear_history_button.setEnabled(bool(self.history))
         self.data_range.setToolTip(
@@ -1004,12 +1039,15 @@ class MainWindow(QMainWindow):
         if hasattr(self, "export_button"):
             self.export_button.setEnabled(self.record is not None)
 
-    def current_psf(self):
-        if self.observation is None:
+    def current_psf(self, image=None):
+        image = self.observation if image is None else image
+        if image is None:
+            if self.source is not None:
+                raise ValueError("Generate degradation before running restoration.")
             raise ValueError("Open a degraded image first.")
         if self.psf_mode.currentText() == "Gaussian":
             return ImageData(
-                psf_gaussian(self.observation.pixels.shape, self.sigma.value()),
+                psf_gaussian(image.pixels.shape, self.sigma.value()),
                 f"Gaussian sigma={self.sigma.value():g} px",
             )
         if self.imported_psf is None:
@@ -1280,6 +1318,11 @@ class MainWindow(QMainWindow):
             None if observation is None else observation.pixels,
             self.low.value(),
             self.high.value(),
+        )
+        self.input_display.setCurrentWidget(
+            self.observation_prompt
+            if self.record is None and self.source is not None and observation is None
+            else self.input_view
         )
         self.output_view.set_image(
             None if self.record is None else self.record.output,
