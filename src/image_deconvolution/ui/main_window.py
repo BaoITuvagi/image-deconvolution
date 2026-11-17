@@ -423,12 +423,18 @@ class MainWindow(QMainWindow):
                     label.setText(label.text().rstrip(":") + ":")
                     self.control_labels[widget] = label
 
-        self.psf_group = QGroupBox("PSF && intensity")
-        add_rows(
-            QFormLayout(self.psf_group),
-            ["psf_mode", "sigma", "Open PSF…", "psf_info", "data_range"],
-        )
-        self.form.addRow(self.psf_group)
+        self.psf_rows = [
+            rows.pop(key)
+            for key in ["psf_mode", "sigma", "Open PSF…", "data_range", "psf_info"]
+        ]
+        self.psf_parking = QWidget(self.controls)
+        self.psf_parking.hide()
+        for label, widget in self.psf_rows:
+            widget.setParent(self.psf_parking)
+            if label is not None:
+                label.setParent(self.psf_parking)
+                label.setText(label.text().rstrip(":") + ":")
+                self.control_labels[widget] = label
         for title, keys in groups:
             page = QWidget()
             layout = QFormLayout(page)
@@ -436,23 +442,38 @@ class MainWindow(QMainWindow):
             self.control_pages.addItem(page, title)
         if rows:
             raise RuntimeError(f"Unassigned workflow controls: {list(rows)}")
-        # Scroll only the workflow sections so PSF and L stay accessible.
-        self.sidebar_scroll.takeWidget()
-        self.centralWidget().replaceWidget(0, self.controls)
-        self.sidebar_scroll.setWidget(self.control_pages)
-        self.form.addRow(self.sidebar_scroll)
-        self.centralWidget().setSizes([380, 900])
+        self.form.addRow(self.control_pages)
+        self.control_pages.currentChanged.connect(self.place_psf_controls)
+        self.place_psf_controls(self.control_pages.currentIndex())
+
+    def place_psf_controls(self, section):
+        """Reuse the same fields inside Inputs or Restoration, without a frame."""
+        for label, widget in self.psf_rows:
+            layout = widget.parentWidget().layout()
+            if isinstance(layout, QFormLayout):
+                layout.takeRow(widget)
+            widget.setParent(self.psf_parking)
+            if label is not None:
+                label.setParent(self.psf_parking)
+        if section in (0, 1):
+            layout = self.control_pages.widget(section).layout()
+            row = layout.getWidgetPosition(self.seed)[0] + 1 if section == 0 else 0
+            for label, widget in self.psf_rows:
+                if label is None:
+                    layout.insertRow(row, widget)
+                else:
+                    layout.insertRow(row, label, widget)
+                    label.show()
+                widget.show()
+                row += 1
         self.update_sidebar_width()
 
     def update_sidebar_width(self):
         """Reserve room for inline fields and a vertical scrollbar in any section."""
         margins = self.form.contentsMargins()
         minimum = max(
-            self.psf_group.minimumSizeHint().width(),
-            *(
-                self.control_pages.widget(i).layout().minimumSize().width()
-                for i in range(self.control_pages.count())
-            ),
+            self.control_pages.widget(i).layout().minimumSize().width()
+            for i in range(self.control_pages.count())
         )
         self.sidebar_scroll.setMinimumWidth(
             max(
@@ -935,7 +956,7 @@ class MainWindow(QMainWindow):
         scale_note = (
             f"\nImage scale: [0, {image.nominal_range:g}]\nSet intensity L to this scale for metrics."
             if image.nominal_range is not None
-            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nSet intensity L in PSF & intensity."
+            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nSet intensity L in Inputs or Restoration."
         )
         role = (
             "Source file"
@@ -1028,7 +1049,7 @@ class MainWindow(QMainWindow):
         )
         self.simulate_button.setEnabled(psf_ready and self.source is not None)
         self.simulate_button.setToolTip(
-            "Use the current settings in PSF & intensity."
+            "Use the PSF and intensity L above Generate; shared with Restoration."
             if self.source is not None
             else "Open source for simulation first; saved examples are already degraded."
         )

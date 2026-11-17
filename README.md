@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/shared-psf/Image Deconvolution/`;
+The updated local distribution is `dist/contextual-psf/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -43,9 +43,11 @@ and [third-party notices](docs/third-party-notices.md).
 
 The app also opens single grayscale TIFF/PNG files, generates or imports centered
 normalized PSFs, and simulates seeded Poisson degradation explicitly.
-PSF & intensity stays visible above the sidebar sections, sharing PSF, sigma and
-L between simulation and restoration. Editing these settings keeps the current
-observation fixed until Generate is explicitly clicked.
+PSF, sigma and L appear inside Inputs (after Noise seed, before Generate) or
+Restoration (above algorithm settings), and are hidden in the other sidebar
+sections. L sits immediately below Open PSF, and values are shared between panels.
+Editing these settings keeps the current observation fixed until Generate is
+explicitly clicked.
 Opening a clean source shows it only as ground truth; the observation stays empty
 and restoration is disabled until Generate succeeds. Opening another source clears
 the current observation/output preview while retaining run history. Integer
@@ -85,7 +87,7 @@ ruff format
 .venv\Scripts\python.exe -m pip check
 .venv\Scripts\python.exe -B -m image_deconvolution --verify-workflow "new verification folder"
 .venv\Scripts\python.exe -m pip install -e ".[build]" -c packaging\build-constraints.txt
-.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/source-generation
+.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/contextual-psf
 ```
 
 The maintained tests cover numerical invariants, image/PSF validation, fixed
@@ -97,7 +99,7 @@ and denies Python socket connections during that run. The frozen executable
 supports the same command:
 
 ```powershell
-& ".\dist\source-generation\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
+& ".\dist\contextual-psf\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
 ```
 
 The builder refuses an existing distribution directory; --dist-dir selects a new

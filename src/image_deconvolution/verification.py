@@ -101,13 +101,28 @@ def verify_desktop(destination):
             for section in range(window.control_pages.count()):
                 window.control_pages.setCurrentIndex(section)
                 pump()
-                assert window.psf_group.isVisible()
-                assert window.controls.rect().contains(window.psf_group.geometry())
-                assert window.psf_group.geometry().bottom() < window.sidebar_scroll.y()
-                assert all(
-                    control.parentWidget() is window.psf_group
-                    for control in (window.psf_mode, window.sigma, window.data_range)
-                )
+                for control in (
+                    window.psf_mode,
+                    window.sigma,
+                    window.psf_button,
+                    window.data_range,
+                    window.psf_info,
+                ):
+                    assert control.isVisible() == (section in (0, 1))
+                    assert control.parentWidget() is (
+                        window.control_pages.widget(section)
+                        if section in (0, 1)
+                        else window.psf_parking
+                    )
+                if section in (0, 1):
+                    layout = window.control_pages.widget(section).layout()
+                    start = layout.getWidgetPosition(window.psf_mode)[0]
+                    assert start == (
+                        layout.getWidgetPosition(window.seed)[0] + 1
+                        if section == 0
+                        else 0
+                    )
+                    assert layout.getWidgetPosition(window.data_range)[0] == start + 3
                 for control, label in window.control_labels.items():
                     if control.isVisible():
                         assert label.text().endswith(":") and not label.wordWrap()

@@ -525,7 +525,9 @@ class DesktopTests(unittest.TestCase):
 
         self.window.control_pages.setCurrentIndex(1)
         self.app.processEvents()
-        self.assertTrue(self.window.psf_group.isVisible())
+        self.assertIs(
+            self.window.psf_mode.parentWidget(), self.window.control_pages.widget(1)
+        )
         self.window.psf_mode.setCurrentText("Gaussian")
         self.window.sigma.setValue(3)
         self.window.data_range.setValue(2)
@@ -534,6 +536,18 @@ class DesktopTests(unittest.TestCase):
         self.assertIs(self.window.observation, observed)
         self.assertEqual(self.window.history, [previous])
         self.assertIn("earlier configuration", self.window.result_info.text())
+        config, revision = self.window.current_config(), self.window.revision
+        for section in (2, 1, 3, 0, 1, 0, 1):
+            self.window.control_pages.setCurrentIndex(section)
+            self.app.processEvents()
+            self.assertEqual(self.window.current_config(), config)
+            self.assertEqual(self.window.revision, revision)
+            self.assertIs(self.window.observation, observed)
+            self.assertEqual(self.window.psf_mode.isVisible(), section in (0, 1))
+            self.assertEqual(self.window.data_range.isVisible(), section in (0, 1))
+            np.testing.assert_array_equal(
+                self.window.current_psf().pixels, changed_psf.pixels
+            )
         self.window.run_button.click()
         self.wait_for_worker()
         current = self.window.record
@@ -652,47 +666,41 @@ class DesktopTests(unittest.TestCase):
                         self.assertLess(
                             label.geometry().right(), control.geometry().left()
                         )
-                        viewport = (
-                            self.window.psf_group
-                            if self.window.psf_group.isAncestorOf(control)
-                            else self.window.control_pages.widget(
-                                section
-                            ).parentWidget()
-                        )
+                        viewport = self.window.control_pages.widget(
+                            section
+                        ).parentWidget()
                         position = control.mapTo(viewport, QPoint())
                         self.assertGreaterEqual(position.x(), 0)
                         self.assertLessEqual(
                             position.x() + control.width(), viewport.width()
                         )
-                self.assertTrue(self.window.psf_group.isVisible())
-                self.assertTrue(
-                    self.window.controls.rect().contains(
-                        self.window.psf_group.geometry()
-                    )
-                )
-                self.assertLess(
-                    self.window.psf_group.geometry().bottom(),
-                    self.window.sidebar_scroll.geometry().top(),
-                )
                 for control in (
                     self.window.psf_mode,
                     self.window.sigma,
                     self.window.psf_button,
-                    self.window.psf_info,
                     self.window.data_range,
+                    self.window.psf_info,
                 ):
-                    self.assertIs(control.parentWidget(), self.window.psf_group)
-                self.window.sidebar_scroll.verticalScrollBar().setValue(
-                    self.window.sidebar_scroll.verticalScrollBar().maximum()
-                )
-                self.app.processEvents()
-                self.assertTrue(self.window.data_range.isVisible())
-                self.assertTrue(
-                    self.window.controls.rect().contains(
-                        self.window.psf_group.geometry()
+                    self.assertEqual(control.isVisible(), section in (0, 1))
+                    self.assertIs(
+                        control.parentWidget(),
+                        self.window.control_pages.widget(section)
+                        if section in (0, 1)
+                        else self.window.psf_parking,
                     )
-                )
-                self.window.sidebar_scroll.verticalScrollBar().setValue(0)
+                if section == 1:
+                    layout = self.window.control_pages.widget(section).layout()
+                    for row, control in enumerate(
+                        (
+                            self.window.psf_mode,
+                            self.window.sigma,
+                            self.window.psf_button,
+                            self.window.data_range,
+                            self.window.psf_info,
+                            self.window.method,
+                        )
+                    ):
+                        self.assertEqual(layout.getWidgetPosition(control)[0], row)
             self.window.control_pages.setCurrentIndex(0)
             self.window.sample_button.click()
             for _ in range(10):
@@ -715,6 +723,11 @@ class DesktopTests(unittest.TestCase):
                 self.window.clear_truth_button,
                 self.window.photons,
                 self.window.seed,
+                self.window.psf_mode,
+                self.window.sigma,
+                self.window.psf_button,
+                self.window.data_range,
+                self.window.psf_info,
                 self.window.simulate_button,
                 self.window.simulation_note,
                 self.window.image_information,
