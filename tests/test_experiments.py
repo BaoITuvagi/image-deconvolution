@@ -102,6 +102,30 @@ class ExperimentTests(unittest.TestCase):
             np.testing.assert_array_equal(arrays[4], arrays[0] * arrays[3])
         self.assertEqual(curve[-1]["iteration"], 20)
 
+    def test_report_cells_quality_and_inspector_agreement(self):
+        for method, expected_psnr in [
+            ("IF", 38.46253),
+            ("TRIF", 32.70166),
+            ("RL", 31.16804),
+        ]:
+            with self.subTest(method=method):
+                config = RunConfig(2, method=method, threshold=0.3)
+                record = restore(self.observation, self.psf, config, self.truth)
+                self.assertAlmostEqual(record.quality["psnr"], expected_psnr, places=5)
+        for iterations in [2, 5]:
+            with self.subTest(iterations=iterations):
+                normal = restore(
+                    self.observation, self.psf, RunConfig(iterations), self.truth
+                )
+                inspected = restore(
+                    self.observation,
+                    self.psf,
+                    RunConfig(iterations, inspect=True),
+                    self.truth,
+                )
+                np.testing.assert_array_equal(inspected.output, normal.output)
+                self.assertEqual(inspected.quality, normal.quality)
+
     def test_bars_late_iterations_can_lose_quality(self):
         y = read_image(sample_path("bars_s2_p200_r0_input.tif"))
         truth = read_image(sample_path("bars_gt.tif"))

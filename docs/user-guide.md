@@ -35,9 +35,13 @@ current display settings remain in Display & history.
 1. In Inputs & simulation, choose Cells — reference and click Load beside
    the selector. The sidebar stays on Inputs & simulation. This opens the saved
    degraded float TIFF, its matching sigma-2 PSF, and ground truth. It does not
-   regenerate noise or run restoration. The three choices are Cells, Bars, and
-   Fibers reference. Each loads IF threshold 0.1, TRIF lambda 0.1, RL 5 iterations,
-   epsilon 1e-6, and L=1 for the saved sigma-2, photon-200, seed-0 case.
+   regenerate noise or run restoration. Cells, Bars, and Fibers each offer two
+   presets for the saved sigma-2, photon-200, seed-0 TIFFs. The reference presets
+   load IF threshold 0.1, TRIF lambda 0.1, RL 5 iterations, epsilon 1e-6, and L=1
+   for reference comparisons. The Report — P=200 presets load the quality
+   parameters selected at P=200: IF 0.3, TRIF 0.1, RL 2, epsilon 1e-6, and L=1.
+   To demonstrate report Table 5.5, choose Cells — Report — P=200 and click Load,
+   then run the three-method comparison in Restoration.
 2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.
    The PSF and L fields retain the settings from Inputs. Gaussian sigma is
    used only when PSF is Gaussian. Imported centered PSFs are center-padded to
@@ -146,6 +150,7 @@ even when the displayed phase is the prediction, ratio, correction, or prior est
 Saved references > Compare six saved RL / TRIF references performs new Python
 calculations on the bundled original TIFF inputs and compares them to saved DL2
 outputs for cells, bars, and fibers. It does not execute ImageJ, Fiji, or a JAR.
+The comparison configuration stays fixed regardless of the selected preset.
 
 The configuration is sigma 2, photon level 200, seed 0, RL 5 iterations or TRIF
 lambda 0.1, PSF normalization 1, circular boundaries, epsilon 1e-6, RL initialized
@@ -191,7 +196,12 @@ with absolute tolerance 1e-12, independently of plugin comparison tolerance.
 Time values cover OTF construction and numerical restoration only. They exclude
 file I/O, validation, metric computation, checkpoint copies, and rendering; they
 are not full UI duration or a cross-library speed claim. All processing uses the
-local CPU. Long runs have no cancellation in this version. Closing is blocked
+local CPU. These single-run timings differ from the research benchmark's warm-up
+and repeated-run medians. The report's 22.9% time reduction / 1.30x speedup belongs
+to its research benchmark, not a verified speedup of this desktop change.
+The legacy `cache=False` code path inverse/forward-transforms H in each iteration;
+it is not the report's baseline that rebuilds the OTF from the spatial PSF.
+Long runs have no cancellation in this version. Closing is blocked
 while a worker runs; wait for completion. If a worker fails, the app reports its
 English error and re-enables controls without relabeling an older result.
 

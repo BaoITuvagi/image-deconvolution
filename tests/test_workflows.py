@@ -19,6 +19,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from image_deconvolution.core.algorithms import otf, rl
+from image_deconvolution.experiments.reference import research_example
 from image_deconvolution.experiments.runs import RunConfig, restore
 from image_deconvolution.io.images import (
     ImageData,
@@ -787,11 +788,14 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.window.clear_history_button.isEnabled())
         self.assertFalse(self.window.other_run.isEnabled())
         self.assertFalse(self.window.third_run.isEnabled())
-        self.assertEqual(self.window.saved_example.count(), 3)
-        for index, name in enumerate(["cells", "bars", "fibers"]):
+        self.assertEqual(self.window.saved_example.count(), 6)
+        for index, name in enumerate(["cells", "bars", "fibers"] * 2):
+            report = index >= 3
             self.assertEqual(
                 self.window.saved_example.itemText(index),
-                f"{name.title()} — reference",
+                f"{name.title()} — Report — P=200"
+                if report
+                else f"{name.title()} — reference",
             )
             self.window.threshold.setValue(0.03)
             self.window.regularization.setValue(0.02)
@@ -800,11 +804,26 @@ class DesktopTests(unittest.TestCase):
             self.window.data_range.setValue(2)
             self.window.control_pages.setCurrentIndex(0)
             self.window.saved_example.setCurrentIndex(index)
-            self.window.sample_button.click()
+            with (
+                patch("image_deconvolution.ui.main_window.degrade") as generate,
+                patch("image_deconvolution.ui.main_window.restore") as run,
+                patch.object(self.window, "start_operation") as start,
+            ):
+                self.window.sample_button.click()
+                generate.assert_not_called()
+                run.assert_not_called()
+                start.assert_not_called()
+            observation, psf, truth = research_example(name)
+            for loaded, expected in [
+                (self.window.observation, observation),
+                (self.window.imported_psf, psf),
+                (self.window.ground_truth, truth),
+            ]:
+                self.assertEqual(loaded.identity(), expected.identity())
             self.assertIn(name, self.window.observation.source)
-            self.assertEqual(self.window.threshold.value(), 0.1)
+            self.assertEqual(self.window.threshold.value(), 0.3 if report else 0.1)
             self.assertEqual(self.window.regularization.value(), 0.1)
-            self.assertEqual(self.window.iterations.value(), 5)
+            self.assertEqual(self.window.iterations.value(), 2 if report else 5)
             self.assertEqual(self.window.epsilon.value(), 1e-6)
             self.assertEqual(self.window.data_range.value(), 1)
             self.assertEqual(self.window.control_pages.currentIndex(), 0)
@@ -839,6 +858,57 @@ class DesktopTests(unittest.TestCase):
         self.window.psf_mode.setCurrentText("Imported PSF")
         self.assertTrue(self.window.psf_file.isEnabled())
         self.assertEqual(self.window.psf_file.text(), "psf_s2.tif")
+
+    def test_report_preset_keyboard_history_snapshots_and_fixed_references(self):
+        self.window.load_sample()
+        self.window.run_restoration()
+        self.wait_for_worker()
+        previous = self.window.record
+        pixels = previous.output.copy()
+        self.window.saved_example.setFocus()
+        QTest.keyClick(self.window.saved_example, Qt.Key.Key_End)
+        self.assertEqual(
+            self.window.saved_example.currentText(), "Fibers — Report — P=200"
+        )
+        QTest.keyClick(self.window.saved_example, Qt.Key.Key_Up)
+        QTest.keyClick(self.window.saved_example, Qt.Key.Key_Up)
+        self.assertEqual(
+            self.window.saved_example.currentText(), "Cells — Report — P=200"
+        )
+        QTest.mouseClick(self.window.sample_button, Qt.MouseButton.LeftButton)
+        self.assertEqual(self.window.history, [previous])
+        self.assertIsNone(self.window.record)
+        self.assertIsNone(self.window.worker)
+        self.assertEqual(previous.config.iterations, 5)
+        self.assertEqual(previous.config.threshold, 0.1)
+        np.testing.assert_array_equal(previous.output, pixels)
+        self.window.compare_methods()
+        self.wait_for_worker()
+        for record, method, expected in zip(
+            self.window.history[-3:],
+            ["IF", "TRIF", "RL"],
+            [38.46253, 32.70166, 31.16804],
+            strict=True,
+        ):
+            self.assertEqual(record.config.method, method)
+            self.assertEqual(record.config.iterations, 2)
+            self.assertEqual(record.config.threshold, 0.3)
+            self.assertAlmostEqual(record.quality["psnr"], expected, places=5)
+            np.testing.assert_array_equal(
+                record.observation.pixels, previous.observation.pixels
+            )
+        latest = self.window.record
+        self.window.iterations.setValue(8)
+        self.assertIn("earlier configuration", self.window.result_info.text())
+        self.assertEqual(latest.config.iterations, 2)
+        self.window.verify_references()
+        self.wait_for_worker()
+        self.assertEqual(len(self.window.reference_panel.rows), 6)
+        for row in self.window.reference_panel.rows:
+            self.assertEqual(row["record"].config.iterations, 5)
+            self.assertEqual(row["record"].config.regularization, 0.1)
+        self.assertEqual(self.window.iterations.value(), 8)
+        self.assertEqual(self.window.threshold.value(), 0.3)
 
     def test_psf_file_picker_modes_cancel_and_invalid_file_preserve_state(self):
         field = self.window.psf_file

@@ -74,18 +74,20 @@ def verify_desktop(destination):
 
             window.control_pages.setCurrentIndex(0)
             assert window.psf_file.text() == "" and not window.psf_file.isEnabled()
-            assert window.saved_example.count() == 3
-            for index, name in enumerate(("cells", "bars", "fibers")):
-                assert (
-                    window.saved_example.itemText(index)
-                    == f"{name.title()} — reference"
+            assert window.saved_example.count() == 6
+            for index, name in enumerate(("cells", "bars", "fibers") * 2):
+                report_preset = index >= 3
+                assert window.saved_example.itemText(index) == (
+                    f"{name.title()} — Report — P=200"
+                    if report_preset
+                    else f"{name.title()} — reference"
                 )
                 window.saved_example.setCurrentIndex(index)
                 window.sample_button.click()
                 assert name in window.observation.source
-                assert window.threshold.value() == 0.1
+                assert window.threshold.value() == (0.3 if report_preset else 0.1)
                 assert window.regularization.value() == 0.1
-                assert window.iterations.value() == 5
+                assert window.iterations.value() == (2 if report_preset else 5)
                 assert window.epsilon.value() == 1e-6
                 assert window.data_range.value() == 1
                 assert window.record is None and window.worker is None
@@ -93,6 +95,11 @@ def verify_desktop(destination):
                 assert window.psf_file.text() == "psf_s2.tif"
                 assert window.psf_file.isEnabled() and not window.sigma.isEnabled()
                 assert "Set intensity L" not in window.input_info.text()
+            window.saved_example.setCurrentIndex(3)
+            window.sample_button.click()
+            pump()
+            assert window.grab().save(str(root / "report-preset.png"))
+            checks.append("Six reference/report presets load without restoration")
             window.saved_example.setCurrentIndex(0)
             window.sample_button.click()
             pump()

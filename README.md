@@ -25,6 +25,10 @@ and [third-party notices](docs/third-party-notices.md).
    beside the selector; the sidebar stays on Inputs & simulation. Loading does
    not regenerate noise or run restoration. Cells, Bars, and Fibers reference
    presets use IF 0.1, TRIF 0.1, RL 5, epsilon 1e-6, and L=1.
+   To demonstrate report Table 5.5, choose Cells — Report — P=200 instead:
+   IF 0.3, TRIF 0.1, RL 2, epsilon 1e-6, and L=1. Bars and Fibers have the same
+   Report preset. Reference presets retain the comparison configuration;
+   Report presets use the quality parameters selected at P=200 on the same TIFFs.
 2. Restoration > Compare IF, TRIF, and RL runs all methods on identical input in
    a worker and displays all three outputs. Degraded-input and restored metrics
    share one ground truth/intensity scale; PSNR change makes improvements and
@@ -130,5 +134,12 @@ version. Inputs are limited to 16 megapixels; history and RL capture are bounded
 The Windows build is verified on this machine, not a separate clean installation.
 Research redistribution rights remain to be confirmed before public distribution;
 no project-wide license is assigned to reused material.
+
+App timings include OTF construction and numerical restoration for one run;
+they differ from the research benchmark's warm-up and repeated-run medians.
+The reported 22.9% reduction / 1.30x speedup belongs to that research benchmark
+and is not established for this app by precomputing the conjugate OTF.
+The legacy `cache=False` path inverse/forward-transforms H each iteration;
+it is not the report's baseline that rebuilds the OTF from the spatial PSF.
 
 See the [plan and verified progress](docs/plan.md) for implementation details.

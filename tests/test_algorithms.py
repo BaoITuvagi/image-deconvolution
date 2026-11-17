@@ -9,6 +9,7 @@ import sys
 import unittest
 
 import numpy as np
+from scipy.fft import irfft2, rfft2
 from scipy.signal import convolve2d
 
 from image_deconvolution.core.algorithms import (
@@ -89,6 +90,32 @@ class NumericalTests(unittest.TestCase):
             )
             self.assertFalse(np.shares_memory(estimate, result))
         np.testing.assert_array_equal(result, rl(self.x, self.H, 5))
+
+    def test_rl_matches_previous_loop_including_uncached_spectrum_and_checkpoints(self):
+        for shape in [(32, 32), (31, 35)]:
+            y = self.rng.random(shape)
+            h = np.zeros(shape)
+            row, col = (n // 2 for n in shape)
+            h[row, col], h[row - 1, col + 1] = 0.7, 0.3
+            H = otf(h)  # Asymmetric PSF exercises a complex, nontrivial adjoint.
+            original = H.copy()
+            for cache in [True, False]:
+                with self.subTest(shape=shape, cache=cache):
+                    expected, spectrum, checkpoints = y.copy(), H.copy(), {}
+                    for k in range(1, 6):
+                        if not cache:
+                            spectrum = rfft2(irfft2(spectrum, s=shape))
+                        ratio = y / np.maximum(blur(expected, spectrum), 1e-6)
+                        expected *= blur(ratio, np.conj(spectrum))
+                        if k in [1, 3, 5]:
+                            checkpoints[k] = expected.copy()
+                    result, history = rl(y, H, 5, checkpoints=[1, 3, 5], cache=cache)
+                    np.testing.assert_array_equal(result, expected)
+                    self.assertEqual(set(history), set(checkpoints))
+                    for k, estimate in checkpoints.items():
+                        np.testing.assert_array_equal(history[k], estimate)
+                        self.assertFalse(np.shares_memory(history[k], result))
+                    np.testing.assert_array_equal(H, original)
 
     def test_core_import_does_not_load_qt(self):
         subprocess.run(
