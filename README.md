@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/contextual-psf/Image Deconvolution/`;
+The updated local distribution is `dist/compact-psf/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.

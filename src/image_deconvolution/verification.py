@@ -73,6 +73,7 @@ def verify_desktop(destination):
             checks.append("Missing observation rejected by the UI")
 
             window.control_pages.setCurrentIndex(0)
+            assert window.psf_file.text() == "" and not window.psf_file.isEnabled()
             assert window.saved_example.count() == 3
             for index, name in enumerate(("cells", "bars", "fibers")):
                 assert (
@@ -89,6 +90,9 @@ def verify_desktop(destination):
                 assert window.data_range.value() == 1
                 assert window.record is None and window.worker is None
                 assert window.control_pages.currentIndex() == 0
+                assert window.psf_file.text() == "psf_s2.tif"
+                assert window.psf_file.isEnabled() and not window.sigma.isEnabled()
+                assert "Set intensity L" not in window.input_info.text()
             window.saved_example.setCurrentIndex(0)
             window.sample_button.click()
             pump()
@@ -103,10 +107,9 @@ def verify_desktop(destination):
                 pump()
                 for control in (
                     window.psf_mode,
+                    window.psf_file,
                     window.sigma,
-                    window.psf_button,
                     window.data_range,
-                    window.psf_info,
                 ):
                     assert control.isVisible() == (section in (0, 1))
                     assert control.parentWidget() is (
@@ -123,6 +126,8 @@ def verify_desktop(destination):
                         else 0
                     )
                     assert layout.getWidgetPosition(window.data_range)[0] == start + 3
+                    assert layout.getWidgetPosition(window.psf_file)[0] == start + 1
+                    assert layout.getWidgetPosition(window.sigma)[0] == start + 2
                 for control, label in window.control_labels.items():
                     if control.isVisible():
                         assert label.text().endswith(":") and not label.wordWrap()
@@ -170,26 +175,30 @@ def verify_desktop(destination):
                 window.open_source()
             pump()
             assert window.observation is None and window.input_view.array is None
+            assert "Source ground truth:" in window.truth_info.text()
+            assert "Click" not in window.truth_info.text()
             assert window.observation_prompt.isVisible()
             np.testing.assert_array_equal(window.truth_view.array, window.source.pixels)
             assert (
                 not window.run_button.isEnabled()
                 and not window.compare_button.isEnabled()
             )
-            for label in (window.truth_info, window.input_info, window.simulation_note):
+            for label in (window.truth_info, window.input_info):
                 assert label.height() >= label.heightForWidth(label.width())
             assert (
                 window.input_info.geometry().bottom()
                 < window.truth_info.geometry().top()
             )
             assert (
-                window.simulation_note.geometry().bottom()
+                window.simulate_button.geometry().bottom()
                 < window.image_information.geometry().top()
             )
             checks.append(
                 "Inline sidebar fields, retained input panel and readable image information below actions"
             )
             window.psf_mode.setCurrentText("Gaussian")
+            assert not window.psf_file.isEnabled() and window.sigma.isEnabled()
+            assert window.psf_file.text() == "psf_s2.tif"
             window.sigma.setValue(2)
             window.seed.setValue(17)
             window.simulate()

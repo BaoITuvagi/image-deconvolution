@@ -49,6 +49,7 @@ from image_deconvolution.experiments.reference import (
 )
 from image_deconvolution.experiments.runs import RunConfig, degrade, restore
 from image_deconvolution.io.images import ImageData, read_image, save_tiff
+from image_deconvolution.ui.file_field import FileField
 from image_deconvolution.ui.image_view import ImageView
 from image_deconvolution.ui.inspection_panel import InspectionPanel
 from image_deconvolution.ui.number_input import NumberInput
@@ -115,11 +116,10 @@ class MainWindow(QMainWindow):
         self.form.addRow("PSF", self.psf_mode)
         self.sigma = self.number(0.1, 100, 2, 3)
         self.form.addRow("Gaussian sigma (px)", self.sigma)
-        self.psf_button = self.button("Open PSF…", self.open_psf)
-        self.form.addRow(self.psf_button)
-        self.psf_info = WrappedLabel("Centered PSFs are normalized to unit sum.")
-        self.psf_info.setWordWrap(True)
-        self.form.addRow(self.psf_info)
+        self.psf_file = FileField()
+        self.psf_file.setAccessibleName("Open PSF")
+        self.psf_file.clicked.connect(self.open_psf)
+        self.form.addRow("Open PSF", self.psf_file)
         self.iterations = QSpinBox()
         self.iterations.setRange(1, 1000)
         self.iterations.setValue(20)
@@ -323,7 +323,6 @@ class MainWindow(QMainWindow):
                     "photons",
                     "seed",
                     "Generate / regenerate degradation",
-                    "simulation_note",
                     "image_information",
                 ],
             ),
@@ -372,14 +371,13 @@ class MainWindow(QMainWindow):
                         for name in [
                             "policy",
                             "saved_example_row",
-                            "simulation_note",
                             "truth_info",
                             "input_info",
                             "photons",
                             "seed",
                             "psf_mode",
                             "sigma",
-                            "psf_info",
+                            "psf_file",
                             "method",
                             "method_info",
                             "threshold",
@@ -424,8 +422,7 @@ class MainWindow(QMainWindow):
                     self.control_labels[widget] = label
 
         self.psf_rows = [
-            rows.pop(key)
-            for key in ["psf_mode", "sigma", "Open PSF…", "data_range", "psf_info"]
+            rows.pop(key) for key in ["psf_mode", "psf_file", "sigma", "data_range"]
         ]
         self.psf_parking = QWidget(self.controls)
         self.psf_parking.hide()
@@ -517,10 +514,6 @@ class MainWindow(QMainWindow):
             "Generate / regenerate degradation", self.simulate
         )
         self.form.addRow(self.simulate_button)
-        self.simulation_note = WrappedLabel(
-            "Open a source to simulate. Photon level and seed apply only when Generate is clicked."
-        )
-        self.form.addRow(self.simulation_note)
         self.method = QComboBox()
         self.method.addItems(["RL", "IF", "TRIF"])
         for i, title in enumerate(
@@ -599,9 +592,6 @@ class MainWindow(QMainWindow):
             self.data_range.setValue(1)
             self.low.setValue(0)
             self.high.setValue(1)
-            self.psf_info.setText(
-                "Saved sigma-2 PSF. Unit normalization; circular boundaries."
-            )
             self.truth_info.setText(f"Saved {name} ground truth; L=1.")
             self.mark_changed()
             self.refresh_views()
@@ -709,9 +699,13 @@ class MainWindow(QMainWindow):
                     "This configuration exceeds the controls supported by this version."
                 )
             self.truth_info.setText(
-                "Reopened exact input snapshots. Click Run selected method to reproduce the result."
+                "Reopened exact input snapshots; "
+                + (
+                    "ground truth included."
+                    if self.ground_truth is not None
+                    else "no ground truth: quality metrics unavailable."
+                )
             )
-            self.psf_info.setText("Reopened full-image centered normalized PSF.")
             self.mark_changed()
             self.refresh_views()
             self.tabs.setCurrentIndex(0)
@@ -728,9 +722,7 @@ class MainWindow(QMainWindow):
                 self.source = self.ground_truth = source
                 self.mark_changed()
                 self.update_input_details(source)
-                self.truth_info.setText(
-                    "Source loaded. Click Generate / regenerate degradation explicitly."
-                )
+                self.truth_info.setText(f"Source ground truth: {Path(path).name}.")
                 self.show_current_inputs()
             except (OSError, ValueError, DecompressionBombError) as exc:
                 self.error(exc)
@@ -740,9 +732,7 @@ class MainWindow(QMainWindow):
         if path:
             try:
                 self.ground_truth = read_image(path, self.policy.currentData())
-                self.truth_info.setText(
-                    f"Ground truth: {Path(path).name}. Range L must match its intensity convention."
-                )
+                self.truth_info.setText(f"Ground truth: {Path(path).name}.")
                 self.mark_changed()
                 self.show_current_inputs()
             except (OSError, ValueError, DecompressionBombError) as exc:
@@ -954,9 +944,9 @@ class MainWindow(QMainWindow):
                 self.low.value() + max(1e-6, abs(self.low.value()) * 1e-6)
             )
         scale_note = (
-            f"\nImage scale: [0, {image.nominal_range:g}]\nSet intensity L to this scale for metrics."
+            f"\nImage scale: [0, {image.nominal_range:g}]"
             if image.nominal_range is not None
-            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nSet intensity L in Inputs or Restoration."
+            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]"
         )
         role = (
             "Source file"
@@ -977,9 +967,6 @@ class MainWindow(QMainWindow):
             try:
                 self.imported_psf = read_image(path)
                 self.psf_mode.setCurrentText("Imported PSF")
-                self.psf_info.setText(
-                    f"{Path(path).name}; center-padded and normalized when run."
-                )
                 self.mark_changed()
             except (OSError, ValueError, DecompressionBombError) as exc:
                 self.error(exc)
@@ -1008,16 +995,10 @@ class MainWindow(QMainWindow):
         gaussian = self.psf_mode.currentText() == "Gaussian"
         psf_ready = gaussian or self.imported_psf is not None
         ready = self.observation is not None and psf_ready
-        if gaussian:
-            self.psf_info.setText(
-                f"Gaussian sigma={self.sigma.value():g} px; centered, unit-sum PSF."
-            )
-        elif self.imported_psf is None:
-            self.psf_info.setText("Open a centered PSF to enable restoration.")
-        else:
-            self.psf_info.setText(
-                f"{Path(self.imported_psf.source).name}; center-padded and normalized when run."
-            )
+        psf_source = self.imported_psf.source if self.imported_psf is not None else ""
+        self.psf_file.setText(Path(psf_source).name if psf_source else "")
+        self.psf_file.setCursorPosition(0)
+        self.psf_file.setToolTip(psf_source)
         method = self.method.currentText()
         self.method_info.setText(
             {
@@ -1027,6 +1008,7 @@ class MainWindow(QMainWindow):
             }[method]
         )
         for control, enabled in [
+            (self.psf_file, not gaussian),
             (self.sigma, gaussian),
             (self.threshold, method == "IF"),
             (self.regularization, method == "TRIF"),
@@ -1055,13 +1037,6 @@ class MainWindow(QMainWindow):
         )
         self.photons.setEnabled(self.source is not None)
         self.seed.setEnabled(self.source is not None)
-        self.simulation_note.setText(
-            "Open a source to simulate. Photon level and seed apply only when Generate is clicked."
-            if self.source is None
-            else "Adjust the PSF, photon level, seed and L, then click Generate."
-            if self.observation is None
-            else "Click Generate to apply changed simulation settings. Restoration uses the current observation."
-        )
         self.clear_truth_button.setEnabled(self.ground_truth is not None)
         self.clear_history_button.setEnabled(bool(self.history))
         self.data_range.setToolTip(
