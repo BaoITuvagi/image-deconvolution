@@ -19,6 +19,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from image_deconvolution.core.algorithms import otf, rl
+from image_deconvolution.experiments.export import export_bundle
 from image_deconvolution.experiments.runs import RunConfig, restore
 from image_deconvolution.io.images import (
     ImageData,
@@ -190,7 +191,7 @@ class DesktopTests(unittest.TestCase):
             self.assertFalse(view._auto_fit)
         self.window.fit_views()
         self.assertTrue(all(v._auto_fit for v in self.window.views))
-        self.window.method.setCurrentText("TRIF")
+        self.window.method.setCurrentIndex(self.window.method.findData("TRIF"))
         self.window.sigma.setValue(3)
         np.testing.assert_array_equal(self.window.observation.pixels, original)
         self.window.select_history(0)
@@ -198,9 +199,9 @@ class DesktopTests(unittest.TestCase):
         self.window.clear_history()
         self.assertEqual(len(self.window.history), 0)
         self.assertIsNone(self.window.inspector.record)
-        self.window.method.setCurrentText("IF")
+        self.window.method.setCurrentIndex(self.window.method.findData("IF"))
         self.window.load_bars()
-        self.assertEqual(self.window.method.currentText(), "RL")
+        self.assertEqual(self.window.method.currentData(), "RL")
 
     def test_reference_and_export_reopen_workflow(self):
         self.window.verify_references()
@@ -544,8 +545,8 @@ class DesktopTests(unittest.TestCase):
             self.assertEqual(self.window.current_config(), config)
             self.assertEqual(self.window.revision, revision)
             self.assertIs(self.window.observation, observed)
-            self.assertEqual(self.window.psf_mode.isVisible(), section in (0, 1))
-            self.assertEqual(self.window.data_range.isVisible(), section in (0, 1))
+            self.assertEqual(self.window.psf_mode.isVisible(), section == 1)
+            self.assertEqual(self.window.data_range.isVisible(), section == 1)
             np.testing.assert_array_equal(
                 self.window.current_psf().pixels, changed_psf.pixels
             )
@@ -566,7 +567,7 @@ class DesktopTests(unittest.TestCase):
 
         self.window.control_pages.setCurrentIndex(0)
         self.app.processEvents()
-        self.assertTrue(self.window.data_range.isVisible())
+        self.assertFalse(self.window.data_range.isVisible())
         self.assertEqual(self.window.sigma.value(), 3)
         self.assertEqual(self.window.data_range.value(), 2)
         self.assertIs(self.window.observation, observed)
@@ -681,14 +682,23 @@ class DesktopTests(unittest.TestCase):
                     self.window.sigma,
                     self.window.data_range,
                 ):
-                    self.assertEqual(control.isVisible(), section in (0, 1))
+                    self.assertEqual(control.isVisible(), section == 1)
                     self.assertIs(
                         control.parentWidget(),
                         self.window.control_pages.widget(section)
-                        if section in (0, 1)
+                        if section == 1
                         else self.window.psf_parking,
                     )
                 if section == 1:
+                    for index in range(self.window.method.count()):
+                        self.window.method.setCurrentIndex(index)
+                        self.assertGreaterEqual(
+                            self.window.method.width(),
+                            self.window.method.fontMetrics().horizontalAdvance(
+                                self.window.method.currentText()
+                            )
+                            + 20,
+                        )
                     layout = self.window.control_pages.widget(section).layout()
                     for row, control in enumerate(
                         (
@@ -722,10 +732,6 @@ class DesktopTests(unittest.TestCase):
                 self.window.clear_truth_button,
                 self.window.photons,
                 self.window.seed,
-                self.window.psf_mode,
-                self.window.psf_file,
-                self.window.sigma,
-                self.window.data_range,
                 self.window.simulate_button,
                 self.window.image_information,
             ]
@@ -818,7 +824,7 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.window.sigma.isEnabled())
         self.assertFalse(self.window.threshold.isEnabled())
         self.assertFalse(self.window.simulate_button.isEnabled())
-        self.window.method.setCurrentText("IF")
+        self.window.method.setCurrentIndex(self.window.method.findData("IF"))
         self.assertTrue(self.window.threshold.isEnabled())
         self.assertFalse(self.window.epsilon.isEnabled())
         self.assertFalse(self.window.capture.isEnabled())
@@ -841,6 +847,7 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.window.psf_file.text(), "psf_s2.tif")
 
     def test_psf_file_picker_modes_cancel_and_invalid_file_preserve_state(self):
+        self.window.control_pages.setCurrentIndex(1)
         field = self.window.psf_file
         label = self.window.control_labels[field]
         self.assertEqual(label.text(), "Open PSF:")
@@ -863,6 +870,10 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(field.text(), "psf_s2.tif")
         self.assertTrue(field.isReadOnly())
         self.window.sigma.setValue(3)
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
+        ):
+            self.window.open_source()
         for section in (1, 0):
             self.window.control_pages.setCurrentIndex(section)
             self.app.processEvents()
@@ -886,6 +897,164 @@ class DesktopTests(unittest.TestCase):
         self.assertTrue(self.warning.called)
         self.assertIs(self.window.imported_psf, selected)
         self.assertEqual(field.text(), "psf_s2.tif")
+
+    def test_method_labels_keep_ids_and_reopen_all_algorithms(self):
+        self.window.load_sample()
+        self.window.control_pages.setCurrentIndex(1)
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            for index, (code, name) in enumerate(
+                [
+                    ("RL", "Richardson-Lucy"),
+                    ("IF", "Thresholded inverse filtering"),
+                    ("TRIF", "Zeroth-order Tikhonov"),
+                ]
+            ):
+                self.window.method.setCurrentIndex(index)
+                self.assertEqual(self.window.method.currentText(), f"{code} ({name})")
+                self.assertEqual(self.window.current_config().method, code)
+                self.assertEqual(self.window.threshold.isEnabled(), code == "IF")
+                self.assertEqual(self.window.regularization.isEnabled(), code == "TRIF")
+                self.assertEqual(self.window.iterations.isEnabled(), code == "RL")
+                self.window.run_button.click()
+                self.wait_for_worker()
+                record = self.window.record
+                self.assertEqual(record.config.method, code)
+                folder = Path(directory) / code
+                export_bundle(folder, record)
+                with patch(
+                    "PySide6.QtWidgets.QFileDialog.getOpenFileName",
+                    return_value=(str(folder / "experiment.json"), ""),
+                ):
+                    self.window.open_experiment()
+                self.assertEqual(self.window.current_config(), record.config)
+                self.assertEqual(self.window.method.currentData(), code)
+                self.window.run_button.click()
+                self.wait_for_worker()
+                np.testing.assert_allclose(
+                    self.window.record.output, record.output, rtol=0, atol=1e-12
+                )
+        self.assertFalse(self.warning.called, str(self.warning.call_args))
+
+    def test_psf_visibility_tracks_source_and_degraded_transitions(self):
+        def check_sections(source_present):
+            observation = self.window.observation
+            source = self.window.source
+            config = self.window.current_config()
+            for section in (0, 1, 2, 3, 0):
+                self.window.control_pages.setCurrentIndex(section)
+                self.app.processEvents()
+                visible = section == 1 or (section == 0 and source_present)
+                for label, control in self.window.psf_rows:
+                    self.assertEqual(control.isVisible(), visible)
+                    self.assertEqual(label.isVisible(), visible)
+                self.assertIs(self.window.observation, observation)
+                self.assertIs(self.window.source, source)
+                self.assertEqual(self.window.current_config(), config)
+
+        check_sections(False)
+        self.window.load_sample()
+        check_sections(False)
+        for _ in range(2):
+            with patch.object(
+                self.window,
+                "choose_image",
+                return_value=str(sample_path("cells_gt.tif")),
+            ):
+                self.window.open_source()
+            check_sections(True)
+            self.window.simulate_button.click()
+            self.wait_for_worker()
+            check_sections(True)
+            with patch.object(
+                self.window,
+                "choose_image",
+                return_value=str(sample_path("bars_s2_p200_r0_input.tif")),
+            ):
+                self.window.open_observation()
+            check_sections(False)
+        self.assertFalse(self.warning.called, str(self.warning.call_args))
+
+    def test_generate_preserves_source_pixels_and_render_for_all_parameters(self):
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
+        ):
+            self.window.open_source()
+        source = self.window.source
+        original = source.pixels.copy()
+
+        def import_psf():
+            with patch.object(
+                self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))
+            ):
+                self.window.open_psf()
+
+        for name, change in [
+            ("sigma", lambda: self.window.sigma.setValue(3)),
+            ("photons", lambda: self.window.photons.setValue(50)),
+            ("seed", lambda: self.window.seed.setValue(17)),
+            ("imported PSF", import_psf),
+            ("L", lambda: self.window.data_range.setValue(2)),
+            ("Gaussian mode", lambda: self.window.psf_mode.setCurrentText("Gaussian")),
+            ("manual range", lambda: self.window.seed.setValue(18)),
+        ]:
+            with self.subTest(parameter=name):
+                if name == "manual range":
+                    self.window.low.setValue(0.1)
+                    self.window.high.setValue(0.8)
+                    self.window.refresh_views()
+                limits = self.window.low.value(), self.window.high.value()
+                rendered = self.window.truth_view.scene().items()[0].pixmap().toImage()
+                observation = self.window.observation
+                change()
+                self.assertIs(self.window.observation, observation)
+                self.assertEqual(
+                    self.window.truth_view.scene().items()[0].pixmap().toImage(),
+                    rendered,
+                )
+                self.window.simulate_button.click()
+                self.wait_for_worker()
+                self.assertEqual(
+                    (self.window.low.value(), self.window.high.value()), limits
+                )
+                self.assertIs(self.window.source, source)
+                self.assertIs(self.window.ground_truth, source)
+                np.testing.assert_array_equal(self.window.source.pixels, original)
+                np.testing.assert_array_equal(self.window.truth_view.array, original)
+                self.assertEqual(
+                    self.window.truth_view.scene().items()[0].pixmap().toImage(),
+                    rendered,
+                )
+                if observation is not None:
+                    self.assertFalse(
+                        np.array_equal(
+                            observation.pixels, self.window.observation.pixels
+                        )
+                    )
+                self.assertEqual(
+                    self.window.degradation["data_range"],
+                    self.window.data_range.value(),
+                )
+                self.assertEqual(
+                    self.window.degradation["seed"], self.window.seed.value()
+                )
+                self.assertEqual(
+                    self.window.degradation["photons"], self.window.photons.value()
+                )
+                low, high = limits
+                y, x = np.unravel_index(
+                    np.argmax(self.window.observation.pixels), original.shape
+                )
+                expected = int(
+                    np.clip(
+                        (self.window.observation.pixels[y, x] - low) / (high - low),
+                        0,
+                        1,
+                    )
+                    * 255
+                )
+                actual = self.window.input_view.scene().items()[0].pixmap().toImage()
+                self.assertEqual(actual.pixelColor(int(x), int(y)).red(), expected)
+        self.assertFalse(self.warning.called, str(self.warning.call_args))
 
     def test_preserved_integer_display_does_not_change_pixels_or_L(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:

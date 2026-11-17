@@ -92,6 +92,7 @@ def verify_desktop(destination):
                 assert window.control_pages.currentIndex() == 0
                 assert window.psf_file.text() == "psf_s2.tif"
                 assert window.psf_file.isEnabled() and not window.sigma.isEnabled()
+                assert not window.psf_mode.isVisible()
                 assert "Set intensity L" not in window.input_info.text()
             window.saved_example.setCurrentIndex(0)
             window.sample_button.click()
@@ -111,13 +112,13 @@ def verify_desktop(destination):
                     window.sigma,
                     window.data_range,
                 ):
-                    assert control.isVisible() == (section in (0, 1))
+                    assert control.isVisible() == (section == 1)
                     assert control.parentWidget() is (
                         window.control_pages.widget(section)
-                        if section in (0, 1)
+                        if section == 1
                         else window.psf_parking
                     )
-                if section in (0, 1):
+                if section == 1:
                     layout = window.control_pages.widget(section).layout()
                     start = layout.getWidgetPosition(window.psf_mode)[0]
                     assert start == (
@@ -175,6 +176,16 @@ def verify_desktop(destination):
                 window.open_source()
             pump()
             assert window.observation is None and window.input_view.array is None
+            assert window.psf_mode.isVisible() and window.data_range.isVisible()
+            assert (
+                window.control_pages.widget(0)
+                .layout()
+                .getWidgetPosition(window.psf_mode)[0]
+                == window.control_pages.widget(0)
+                .layout()
+                .getWidgetPosition(window.seed)[0]
+                + 1
+            )
             assert "Source ground truth:" in window.truth_info.text()
             assert "Click" not in window.truth_info.text()
             assert window.observation_prompt.isVisible()
@@ -201,8 +212,18 @@ def verify_desktop(destination):
             assert window.psf_file.text() == "psf_s2.tif"
             window.sigma.setValue(2)
             window.seed.setValue(17)
+            source_pixels = window.source.pixels.copy()
+            source_display = window.truth_view.scene().items()[0].pixmap().toImage()
+            display_range = window.low.value(), window.high.value()
             window.simulate()
             wait()
+            assert (window.low.value(), window.high.value()) == display_range
+            np.testing.assert_array_equal(window.ground_truth.pixels, source_pixels)
+            assert (
+                window.truth_view.scene().items()[0].pixmap().toImage()
+                == source_display
+            )
+            assert window.psf_mode.isVisible()
             observed = window.observation.pixels.copy()
             assert not window.observation_prompt.isVisible()
             assert window.run_button.isEnabled() and window.compare_button.isEnabled()

@@ -3,6 +3,28 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The input-workflow update puts each algorithm's full name directly in Method:
+RL (Richardson-Lucy), IF (Thresholded inverse filtering), and TRIF (Zeroth-order
+Tikhonov). The separate description row is removed; run and experiment-file
+identifiers remain RL/IF/TRIF. PSF/intensity controls appear in Inputs only when
+a simulation source exists, including after Generate, and remain available in
+Restoration. Saved examples and degraded-image loading hide them in Inputs.
+Generate preserves the current shared display range and source rendering;
+changed simulation parameters affect the generated observation. Saved reference
+comparisons retain their fixed RL/TRIF configuration. The new local folder is
+`dist/input-workflow/Image Deconvolution`; earlier builds are preserved.
+
+All 41 regression tests and eleven source/frozen desktop workflow groups passed.
+Coverage includes all three method identifiers and experiment round trips,
+source/degraded transitions, inline layout and full method labels at 9/12/16-point
+fonts, and identical source pixels/rendering after changes to sigma, photon
+level, seed, PSF mode/file and L, including a manual shared display range.
+The EXE passed from an empty working directory without development Python on
+PATH. Native Windows self-validation covered the saved-example layout, full
+Method dropdown, actual source dialog, PSF/L visibility, L=2 generation with
+retained source brightness and successful TRIF restoration. Ruff lint/format,
+dependency checks and diff checks passed. No new ImageJ execution occurred.
+
 The compact-PSF update uses an inline Open PSF filename field instead of a
 button and separate summary. Click the field or press Enter/Space while it is
 focused to choose a file. It is blank until a file is selected, and saved
