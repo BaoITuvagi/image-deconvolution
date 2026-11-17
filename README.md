@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/input-panel-fixes/Image Deconvolution/`;
+The updated local distribution is `dist/sidebar-layout/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -78,7 +78,7 @@ ruff format
 .venv\Scripts\python.exe -m pip check
 .venv\Scripts\python.exe -B -m image_deconvolution --verify-workflow "new verification folder"
 .venv\Scripts\python.exe -m pip install -e ".[build]" -c packaging\build-constraints.txt
-.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/input-panel-fixes
+.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/sidebar-layout
 ```
 
 The maintained tests cover numerical invariants, image/PSF validation, fixed
@@ -90,7 +90,7 @@ and denies Python socket connections during that run. The frozen executable
 supports the same command:
 
 ```powershell
-& ".\dist\input-panel-fixes\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
+& ".\dist\sidebar-layout\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
 ```
 
 The builder refuses an existing distribution directory; --dist-dir selects a new

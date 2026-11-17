@@ -11,6 +11,13 @@ Do not publish or redistribute the research assets before confirming their right
 The sidebar has four expandable sections: Inputs & simulation, Restoration,
 Display & history, and Experiment files. The main tabs are Compare & history,
 RL inspector, and Saved references. Long sidebar sections can be scrolled.
+Field labels end with a colon and stay beside their controls. The sidebar
+reserves enough width for inline fields, including at larger text sizes.
+Loading policy and Saved example come first, followed by the image-opening and
+ground-truth buttons, photon level, seed, and Generate. Image information is
+grouped at the bottom: file, dimensions, numerical pixel range, intensity-scale
+guidance, and ground-truth status. A display range labeled "on load" records the
+initial viewing suggestion; current display settings remain in Display & history.
 
 ## Restore a saved example
 

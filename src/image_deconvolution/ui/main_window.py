@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL.Image import DecompressionBombError
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import QEvent, Qt, QTimer, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -26,10 +26,12 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QSplitter,
+    QStyle,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
     QToolBox,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -94,11 +96,14 @@ class MainWindow(QMainWindow):
             ("Bars — reference, RL 5", ("bars", 5)),
         ]:
             self.saved_example.addItem(title, preset)
-        self.sample_button = self.button("Load", self.load_selected_example)
+        self.sample_button = QToolButton()
+        self.sample_button.setText("Load")
+        self.sample_button.clicked.connect(self.load_selected_example)
         self.sample_button.setToolTip("Load the selected saved example.")
         self.saved_example_row = QWidget()
         example_layout = QHBoxLayout(self.saved_example_row)
         example_layout.setContentsMargins(0, 0, 0, 0)
+        example_layout.setSpacing(4)
         example_layout.addWidget(self.saved_example, 1)
         example_layout.addWidget(self.sample_button)
         self.form.addRow("Saved example", self.saved_example_row)
@@ -112,7 +117,7 @@ class MainWindow(QMainWindow):
         self.form.addRow("Gaussian sigma (px)", self.sigma)
         self.psf_button = self.button("Open PSF…", self.open_psf)
         self.form.addRow(self.psf_button)
-        self.psf_info = QLabel("Centered PSFs are normalized to unit sum.")
+        self.psf_info = WrappedLabel("Centered PSFs are normalized to unit sum.")
         self.psf_info.setWordWrap(True)
         self.form.addRow(self.psf_info)
         self.iterations = QSpinBox()
@@ -126,7 +131,7 @@ class MainWindow(QMainWindow):
         self.save_button = self.button("Save selected output TIFF…", self.save_output)
         self.save_button.setEnabled(False)
         self.form.addRow(self.save_button)
-        self.result_info = QLabel(
+        self.result_info = WrappedLabel(
             "No restoration run. Timing includes OTF and algorithm only."
         )
         self.result_info.setWordWrap(True)
@@ -137,12 +142,13 @@ class MainWindow(QMainWindow):
         self.form.addRow("Display maximum", self.high)
         self.form.addRow(self.button("Apply shared display range", self.refresh_views))
         self.form.addRow(self.button("Fit all images", self.fit_views))
-        note = QLabel(
+        note = WrappedLabel(
             "Display range affects viewing only. Scroll to zoom; drag to pan. Measurements use full numerical images."
         )
         note.setWordWrap(True)
         self.form.addRow(note)
         scroll = QScrollArea()
+        self.sidebar_scroll = scroll
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.controls)
         scroll.setMinimumWidth(300)
@@ -233,7 +239,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(scroll)
         splitter.addWidget(self.tabs)
-        splitter.setSizes([320, 960])
+        splitter.setSizes([380, 900])
         self.setCentralWidget(splitter)
         self.statusBar().showMessage("Open an image or load the saved example.")
         exit_action = QAction("Exit", self)
@@ -267,7 +273,7 @@ class MainWindow(QMainWindow):
             is not None
         }
         for label in self.controls.findChildren(QLabel):
-            label.setWordWrap(True)
+            label.setWordWrap(label not in field_labels)
             policy = label.sizePolicy()
             policy.setHorizontalPolicy(
                 QSizePolicy.Policy.Preferred
@@ -283,6 +289,12 @@ class MainWindow(QMainWindow):
                 QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
             )
             combo.setMinimumContentsLength(10)
+        for combo in self.controls.findChildren(QComboBox):
+            combo.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+            combo.setMinimumWidth(80)
+        for combo in (self.policy, self.saved_example):
+            combo.setToolTip(combo.currentText())
+            combo.currentTextChanged.connect(combo.setToolTip)
         self.organize_controls()
         self.populate_comparison_choices()
         self.update_controls()
@@ -295,17 +307,16 @@ class MainWindow(QMainWindow):
                 "Inputs && simulation",
                 [
                     "policy",
-                    "Open degraded image…",
                     "saved_example_row",
+                    "Open degraded image…",
                     "Open source for simulation…",
                     "Open optional ground truth…",
                     "Clear ground truth",
-                    "truth_info",
-                    "input_info",
                     "photons",
                     "seed",
                     "Generate / regenerate degradation",
                     "simulation_note",
+                    "image_information",
                 ],
             ),
             (
@@ -387,24 +398,59 @@ class MainWindow(QMainWindow):
             rows[key] = (label, widget)
         self.control_pages = QToolBox()
         self.control_labels = {}
+        self.image_information = QGroupBox("Image information")
+        information_layout = QVBoxLayout(self.image_information)
+        for key in ("input_info", "truth_info"):
+            _, widget = rows.pop(key)
+            widget.setTextFormat(Qt.TextFormat.PlainText)
+            information_layout.addWidget(widget)
+        rows["image_information"] = (None, self.image_information)
         for title, keys in groups:
             page = QWidget()
             layout = QFormLayout(page)
             layout.setFieldGrowthPolicy(
                 QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
             )
-            layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+            layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
             for key in keys:
                 label, widget = rows.pop(key)
                 layout.addRow(label, widget) if label is not None else layout.addRow(
                     widget
                 )
                 if label is not None:
+                    label.setText(label.text().rstrip(":") + ":")
                     self.control_labels[widget] = label
             self.control_pages.addItem(page, title)
         if rows:
             raise RuntimeError(f"Unassigned workflow controls: {list(rows)}")
         self.form.addRow(self.control_pages)
+        self.update_sidebar_width()
+
+    def update_sidebar_width(self):
+        """Reserve room for inline fields and a vertical scrollbar in any section."""
+        margins = self.form.contentsMargins()
+        minimum = max(
+            self.control_pages.widget(i).layout().minimumSize().width()
+            for i in range(self.control_pages.count())
+        )
+        self.sidebar_scroll.setMinimumWidth(
+            max(
+                300,
+                minimum
+                + margins.left()
+                + margins.right()
+                + 2 * self.sidebar_scroll.frameWidth()
+                + 2 * self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent),
+            )
+        )
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (
+            QEvent.Type.FontChange,
+            QEvent.Type.StyleChange,
+        ) and hasattr(self, "control_pages"):
+            QTimer.singleShot(0, self.update_sidebar_width)
 
     def setup_experiments(self):
         self.form.insertRow(
@@ -454,7 +500,7 @@ class MainWindow(QMainWindow):
         )
         self.capture.setChecked(True)
         self.form.addRow("Method", self.method)
-        self.method_info = QLabel("Richardson–Lucy")
+        self.method_info = WrappedLabel("Richardson–Lucy")
         self.form.addRow(self.method_info)
         self.form.addRow("IF OTF threshold", self.threshold)
         self.form.addRow("TRIF lambda (L = I)", self.regularization)
@@ -853,13 +899,12 @@ class MainWindow(QMainWindow):
                 self.low.value() + max(1e-6, abs(self.low.value()) * 1e-6)
             )
         scale_note = (
-            f"\nImage scale [0, {image.nominal_range:g}]. Set intensity L to this scale for metrics; "
-            "display suggestions do not change L."
+            f"\nImage scale: [0, {image.nominal_range:g}]\nSet intensity L to this scale for metrics."
             if image.nominal_range is not None
-            else f"\nShared display [{self.low.value():g}, {self.high.value():g}]; intensity L is set separately."
+            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nIntensity L is set in Restoration."
         )
         self.input_info.setText(
-            f"{Path(image.source).name}\n{a.shape[1]} × {a.shape[0]}; values {a.min():.5g} to {a.max():.5g}"
+            f"File: {Path(image.source).name}\nSize: {a.shape[1]} × {a.shape[0]} px\nPixel values: {a.min():.5g} to {a.max():.5g}"
             + scale_note
         )
         self.input_info.setToolTip(

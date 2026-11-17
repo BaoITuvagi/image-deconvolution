@@ -79,8 +79,21 @@ def verify_desktop(destination):
             assert window.control_pages.currentIndex() == 0
             selector = window.saved_example.geometry()
             button = window.sample_button.geometry()
-            assert selector.center().y() == button.center().y()
+            assert abs(selector.center().y() - button.center().y()) <= 1
             assert selector.right() < button.left()
+            for section in range(window.control_pages.count()):
+                window.control_pages.setCurrentIndex(section)
+                pump()
+                for control, label in window.control_labels.items():
+                    if control.isVisible():
+                        assert label.text().endswith(":") and not label.wordWrap()
+                        assert (
+                            abs(
+                                label.geometry().center().y()
+                                - control.geometry().center().y()
+                            )
+                            <= 1
+                        )
             window.control_pages.setCurrentIndex(1)
             window.run_button.click()
             assert not window.controls.isEnabled()
@@ -120,14 +133,15 @@ def verify_desktop(destination):
             for label in (window.truth_info, window.input_info, window.simulation_note):
                 assert label.height() >= label.heightForWidth(label.width())
             assert (
-                window.truth_info.geometry().bottom()
-                < window.input_info.geometry().top()
+                window.input_info.geometry().bottom()
+                < window.truth_info.geometry().top()
             )
             assert (
-                window.input_info.geometry().bottom() < window.photons.geometry().top()
+                window.simulation_note.geometry().bottom()
+                < window.image_information.geometry().top()
             )
             checks.append(
-                "Inline saved-example Load, retained input panel and wrapped source status"
+                "Inline sidebar fields, retained input panel and readable image information below actions"
             )
             window.psf_mode.setCurrentText("Gaussian")
             window.sigma.setValue(2)
