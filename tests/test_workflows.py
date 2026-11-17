@@ -122,6 +122,8 @@ class DesktopTests(unittest.TestCase):
         self.window.control_pages.setCurrentIndex(0)
         QTest.mouseClick(self.window.sample_button, Qt.MouseButton.LeftButton)
         self.assertEqual(self.window.observation.pixels.shape, (256, 256))
+        self.assertEqual(self.window.control_pages.currentIndex(), 0)
+        self.window.control_pages.setCurrentIndex(1)
         QTest.mouseClick(self.window.run_button, Qt.MouseButton.LeftButton)
         self.assertFalse(self.window.controls.isEnabled())
         self.wait_for_worker()
@@ -348,6 +350,68 @@ class DesktopTests(unittest.TestCase):
             self.window.truth_view.array, self.window.source.pixels
         )
 
+    def test_input_messages_resize_after_saved_example_and_source_loading(self):
+        for points in (9, 12, 16):
+            font = self.window.font()
+            font.setPointSize(points)
+            self.window.setFont(font)
+            for width, height, sidebar in (
+                (960, 640, 300),
+                (1280, 820, 470),
+                (960, 640, 300),
+            ):
+                with self.subTest(points=points, sidebar=sidebar, width=width):
+                    self.window.resize(width, height)
+                    self.window.centralWidget().setSizes([sidebar, width - sidebar])
+                    self.window.control_pages.setCurrentIndex(0)
+                    self.window.sample_button.click()
+                    self.app.processEvents()
+                    selector = self.window.saved_example.geometry()
+                    button = self.window.sample_button.geometry()
+                    self.assertEqual(selector.center().y(), button.center().y())
+                    self.assertLess(selector.right(), button.left())
+                    self.assertGreaterEqual(
+                        button.width(),
+                        self.window.sample_button.minimumSizeHint().width(),
+                    )
+                    with patch.object(
+                        self.window,
+                        "choose_image",
+                        return_value=str(sample_path("cells_gt.tif")),
+                    ):
+                        self.window.open_source()
+                    for _ in range(10):
+                        self.app.processEvents()
+                    self.assertTrue(self.window.simulate_button.isEnabled())
+                    self.assertEqual(self.window.control_pages.currentIndex(), 0)
+                    for label in (
+                        self.window.truth_info,
+                        self.window.input_info,
+                        self.window.simulation_note,
+                    ):
+                        self.assertGreaterEqual(
+                            label.height(), label.heightForWidth(label.width())
+                        )
+                    for preceding, following in (
+                        (self.window.clear_truth_button, self.window.truth_info),
+                        (self.window.truth_info, self.window.input_info),
+                        (self.window.input_info, self.window.photons),
+                        (self.window.simulate_button, self.window.simulation_note),
+                    ):
+                        self.assertLess(
+                            preceding.geometry().bottom(), following.geometry().top()
+                        )
+                    self.window.sample_button.click()
+                    for _ in range(10):
+                        self.app.processEvents()
+                    self.assertFalse(self.window.simulate_button.isEnabled())
+                    self.assertLessEqual(
+                        self.window.truth_info.minimumHeight(),
+                        self.window.truth_info.heightForWidth(
+                            self.window.truth_info.width()
+                        ),
+                    )
+
     def test_inspector_quality_fit_and_reference_keyboard_selection(self):
         self.window.load_sample()
         self.window.run_restoration()
@@ -396,6 +460,7 @@ class DesktopTests(unittest.TestCase):
             self.window.sample_button.click()
             self.assertIn(name, self.window.observation.source)
             self.assertEqual(self.window.iterations.value(), iterations)
+            self.assertEqual(self.window.control_pages.currentIndex(), 0)
         self.assertTrue(self.window.run_button.isEnabled())
         self.assertFalse(self.window.sigma.isEnabled())
         self.assertFalse(self.window.threshold.isEnabled())
