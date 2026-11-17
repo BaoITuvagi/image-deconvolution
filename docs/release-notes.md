@@ -3,6 +3,24 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 17, 2026 input-panel update places Load beside the saved-example
+selector and keeps Inputs & simulation open after loading. Wrapped input status
+messages now reserve their full height when their text, width, or font changes,
+preventing clipping and overlap with the controls below. Both Loading policy
+modes are retained. The updated folder is
+`dist/input-panel-fixes/Image Deconvolution`; earlier builds are retained.
+
+For this update, all 33 regression tests passed, including input layout checks at
+9-, 12-, and 16-point text sizes and 960 x 640 / 1280 x 820 windows. Source and
+frozen builds passed all eleven desktop acceptance groups. The EXE completed
+verification from an empty working directory with the development Python
+environment removed from PATH and Python environment variables unset. Native
+Windows inspection confirmed inline Load, retained input-panel selection, and
+fully visible status text after loading a saved example and opening a clean
+source through the actual file dialog. Ruff lint/format and pip check passed.
+These are self-validation results on the current machine; no ImageJ execution
+occurred.
+
 The November 16, 2026 desktop review update corrects history selection, current-input
 preview, ground-truth refresh, persistent configuration notices, RL quality labels,
 and fitting across image tabs. I also consolidated saved examples, added compact
@@ -39,7 +57,8 @@ blind deconvolution, or alternate boundary models. Another clean Windows machine
 has not been tested. Research redistribution rights are not established by
 attribution; keep this evaluation build local pending that confirmation.
 
-Validation on Windows 11 x64 (build 26200), Python 3.13.6: all 32 numerical,
+For the November 16 build, validation on Windows 11 x64 (build 26200), Python
+3.13.6: all 32 numerical,
 I/O and Qt workflow regression checks passed. The source and updated EXE passed
 all ten desktop acceptance groups. The frozen app was tested from an empty
 working directory, with PATH limited to Windows and Python environment variables

@@ -14,8 +14,8 @@ RL inspector, and Saved references. Long sidebar sections can be scrolled.
 
 ## Restore a saved example
 
-1. In Inputs & simulation, choose Cells — reference, RL 5 and click Load saved
-   example. This opens the saved
+1. In Inputs & simulation, choose Cells — reference, RL 5 and click Load beside
+   the selector. The sidebar stays on Inputs & simulation. This opens the saved
    degraded float TIFF, its matching sigma-2 PSF, and ground truth. It does not
    regenerate noise. The default example uses five RL iterations and L=1.
 2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.

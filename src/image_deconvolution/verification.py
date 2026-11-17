@@ -74,7 +74,13 @@ def verify_desktop(destination):
 
             window.control_pages.setCurrentIndex(0)
             window.sample_button.click()
+            pump()
             assert window.observation.pixels.shape == (256, 256)
+            assert window.control_pages.currentIndex() == 0
+            selector = window.saved_example.geometry()
+            button = window.sample_button.geometry()
+            assert selector.center().y() == button.center().y()
+            assert selector.right() < button.left()
             window.control_pages.setCurrentIndex(1)
             window.run_button.click()
             assert not window.controls.isEnabled()
@@ -103,9 +109,26 @@ def verify_desktop(destination):
             )
             checks.append("Stale-result label, display independence and UI TIFF save")
 
-            source = read_image(sample_path("cells_gt.tif"))
-            window.set_observation(source)
-            window.source = source
+            window.control_pages.setCurrentIndex(0)
+            with patch.object(
+                QFileDialog,
+                "getOpenFileName",
+                return_value=(str(sample_path("cells_gt.tif")), ""),
+            ):
+                window.open_source()
+            pump()
+            for label in (window.truth_info, window.input_info, window.simulation_note):
+                assert label.height() >= label.heightForWidth(label.width())
+            assert (
+                window.truth_info.geometry().bottom()
+                < window.input_info.geometry().top()
+            )
+            assert (
+                window.input_info.geometry().bottom() < window.photons.geometry().top()
+            )
+            checks.append(
+                "Inline saved-example Load, retained input panel and wrapped source status"
+            )
             window.psf_mode.setCurrentText("Gaussian")
             window.sigma.setValue(2)
             window.seed.setValue(17)
@@ -117,6 +140,7 @@ def verify_desktop(destination):
             window.iterations.setValue(10)
             np.testing.assert_array_equal(window.observation.pixels, observed)
             window.clear_history()
+            window.control_pages.setCurrentIndex(1)
             window.compare_button.click()
             wait()
             assert [r.config.method for r in window.history] == ["IF", "TRIF", "RL"]

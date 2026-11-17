@@ -10,8 +10,8 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/review-fixes/Image Deconvolution/`;
-the earlier evaluation folder is retained separately. Open
+The updated local distribution is `dist/input-panel-fixes/Image Deconvolution/`;
+the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
 This is an unsigned local evaluation build; no GitHub Release is published.
@@ -20,9 +20,10 @@ and [third-party notices](docs/third-party-notices.md).
 
 ## Features and quick demonstration
 
-1. Inputs & simulation > Saved example > Cells — reference, RL 5 > Load saved
-   example opens saved float TIFF input,
-   ground truth, and the matching PSF; it does not regenerate noise.
+1. Inputs & simulation > Saved example > Cells — reference, RL 5 > Load opens
+   saved float TIFF input, ground truth, and the matching PSF. The Load button sits
+   beside the selector; the sidebar stays on Inputs & simulation. Loading does
+   not regenerate noise.
 2. Restoration > Compare IF, TRIF, and RL runs all methods on identical input in
    a worker and displays all three outputs. Degraded-input and restored metrics
    share one ground truth/intensity scale; PSNR change makes improvements and
@@ -77,7 +78,7 @@ ruff format
 .venv\Scripts\python.exe -m pip check
 .venv\Scripts\python.exe -B -m image_deconvolution --verify-workflow "new verification folder"
 .venv\Scripts\python.exe -m pip install -e ".[build]" -c packaging\build-constraints.txt
-.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/review-fixes
+.venv\Scripts\python.exe -B tools\build_windows.py --dist-dir dist/input-panel-fixes
 ```
 
 The maintained tests cover numerical invariants, image/PSF validation, fixed
@@ -89,7 +90,7 @@ and denies Python socket connections during that run. The frozen executable
 supports the same command:
 
 ```powershell
-& ".\dist\review-fixes\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
+& ".\dist\input-panel-fixes\Image Deconvolution\ImageDeconvolution.exe" --verify-workflow "new packaged verification folder"
 ```
 
 The builder refuses an existing distribution directory; --dist-dir selects a new

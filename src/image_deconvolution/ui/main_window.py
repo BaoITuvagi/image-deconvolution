@@ -51,6 +51,7 @@ from image_deconvolution.ui.inspection_panel import InspectionPanel
 from image_deconvolution.ui.number_input import NumberInput
 from image_deconvolution.ui.reference_panel import ReferencePanel
 from image_deconvolution.ui.worker import ProcessingThread
+from image_deconvolution.ui.wrapped_label import WrappedLabel
 
 logger = logging.getLogger(__name__)
 
@@ -93,12 +94,15 @@ class MainWindow(QMainWindow):
             ("Bars — reference, RL 5", ("bars", 5)),
         ]:
             self.saved_example.addItem(title, preset)
-        self.form.addRow("Saved example", self.saved_example)
-        self.sample_button = self.button(
-            "Load saved example", self.load_selected_example
-        )
-        self.form.addRow(self.sample_button)
-        self.input_info = QLabel("No image loaded.")
+        self.sample_button = self.button("Load", self.load_selected_example)
+        self.sample_button.setToolTip("Load the selected saved example.")
+        self.saved_example_row = QWidget()
+        example_layout = QHBoxLayout(self.saved_example_row)
+        example_layout.setContentsMargins(0, 0, 0, 0)
+        example_layout.addWidget(self.saved_example, 1)
+        example_layout.addWidget(self.sample_button)
+        self.form.addRow("Saved example", self.saved_example_row)
+        self.input_info = WrappedLabel("No image loaded.")
         self.input_info.setWordWrap(True)
         self.form.addRow(self.input_info)
         self.psf_mode = QComboBox()
@@ -264,12 +268,13 @@ class MainWindow(QMainWindow):
         }
         for label in self.controls.findChildren(QLabel):
             label.setWordWrap(True)
-            label.setSizePolicy(
+            policy = label.sizePolicy()
+            policy.setHorizontalPolicy(
                 QSizePolicy.Policy.Preferred
                 if label in field_labels
-                else QSizePolicy.Policy.Ignored,
-                QSizePolicy.Policy.Preferred,
+                else QSizePolicy.Policy.Ignored
             )
+            label.setSizePolicy(policy)
         for combo in self.controls.findChildren(QComboBox) + [
             self.other_run,
             self.third_run,
@@ -291,8 +296,7 @@ class MainWindow(QMainWindow):
                 [
                     "policy",
                     "Open degraded image…",
-                    "saved_example",
-                    "Load saved example",
+                    "saved_example_row",
                     "Open source for simulation…",
                     "Open optional ground truth…",
                     "Clear ground truth",
@@ -353,7 +357,7 @@ class MainWindow(QMainWindow):
                         name
                         for name in [
                             "policy",
-                            "saved_example",
+                            "saved_example_row",
                             "simulation_note",
                             "truth_info",
                             "input_info",
@@ -411,7 +415,7 @@ class MainWindow(QMainWindow):
         )
         self.clear_truth_button = self.button("Clear ground truth", self.clear_truth)
         self.form.insertRow(5, self.clear_truth_button)
-        self.truth_info = QLabel("No ground truth: quality metrics unavailable.")
+        self.truth_info = WrappedLabel("No ground truth: quality metrics unavailable.")
         self.truth_info.setWordWrap(True)
         self.form.insertRow(6, self.truth_info)
         self.photons = self.number(1, 1e8, 200, 2)
@@ -425,7 +429,7 @@ class MainWindow(QMainWindow):
             "Generate / regenerate degradation", self.simulate
         )
         self.form.addRow(self.simulate_button)
-        self.simulation_note = QLabel(
+        self.simulation_note = WrappedLabel(
             "Open a source to simulate. Photon level and seed apply only when Generate is clicked."
         )
         self.form.addRow(self.simulation_note)
@@ -515,7 +519,6 @@ class MainWindow(QMainWindow):
             self.mark_changed()
             self.refresh_views()
             self.tabs.setCurrentIndex(0)
-            self.control_pages.setCurrentIndex(1)
         except (OSError, ValueError, DecompressionBombError) as exc:
             self.error(exc)
 
