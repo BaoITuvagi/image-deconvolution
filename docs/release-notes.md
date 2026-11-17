@@ -3,6 +3,24 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The source-generation update shows a newly opened clean source only in Current
+ground truth. Current observation stays empty with a Generate prompt, and Run /
+Compare stay disabled until generation succeeds. Gaussian PSFs use the source
+dimensions before an observation exists; imported PSFs remain supported. Opening
+another source clears the current observation/output preview and keeps immutable
+run history. Saved examples and degraded-image loading still provide observations
+immediately. The current local build is `dist/source-generation/Image Deconvolution`;
+earlier builds are retained.
+
+For this change, all 36 regression tests passed, including source-only previews,
+Gaussian/imported PSFs before observation creation, restoration guards, failed
+generation recovery, fixed observations, history selection, and loading another
+source. Source and frozen builds passed all eleven desktop workflow groups. Native
+Windows self-inspection exercised Open source through the real file dialog,
+disabled restoration before Generate, observation creation, restoration, and
+opening another source while preserving history. Ruff lint/format and pip check
+passed. No ImageJ execution occurred.
+
 The sidebar layout follow-up keeps field labels and their controls on one row,
 with a trailing colon, across all sidebar sections. Loading policy and Saved
 example precede the image-opening buttons. Photon level, seed, and Generate

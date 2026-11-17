@@ -130,6 +130,13 @@ def verify_desktop(destination):
             ):
                 window.open_source()
             pump()
+            assert window.observation is None and window.input_view.array is None
+            assert window.observation_prompt.isVisible()
+            np.testing.assert_array_equal(window.truth_view.array, window.source.pixels)
+            assert (
+                not window.run_button.isEnabled()
+                and not window.compare_button.isEnabled()
+            )
             for label in (window.truth_info, window.input_info, window.simulation_note):
                 assert label.height() >= label.heightForWidth(label.width())
             assert (
@@ -149,6 +156,9 @@ def verify_desktop(destination):
             window.simulate()
             wait()
             observed = window.observation.pixels.copy()
+            assert not window.observation_prompt.isVisible()
+            assert window.run_button.isEnabled() and window.compare_button.isEnabled()
+            np.testing.assert_array_equal(window.input_view.array, observed)
             assert window.degradation["seed"] == 17
             window.threshold.setValue(0.02)
             window.iterations.setValue(10)
@@ -168,7 +178,7 @@ def verify_desktop(destination):
             window.other_run.setCurrentIndex(2)
             assert window.other_view.array is not None
             checks.append(
-                "Explicit seeded degradation and three-method fixed-input comparison"
+                "Source-only ground truth -> explicit seeded observation -> three-method fixed-input comparison"
             )
 
             window.clear_truth()
