@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 from PIL.Image import DecompressionBombError
-from PySide6.QtCore import QEvent, Qt, QTimer, Slot
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer, Slot
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QStackedWidget,
     QStyle,
+    QStyleOptionComboBox,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -330,7 +331,6 @@ class MainWindow(QMainWindow):
                 "Restoration",
                 [
                     "method",
-                    "method_info",
                     "threshold",
                     "regularization",
                     "iterations",
@@ -379,7 +379,6 @@ class MainWindow(QMainWindow):
                             "sigma",
                             "psf_file",
                             "method",
-                            "method_info",
                             "threshold",
                             "regularization",
                             "iterations",
@@ -444,7 +443,7 @@ class MainWindow(QMainWindow):
         self.place_psf_controls(self.control_pages.currentIndex())
 
     def place_psf_controls(self, section):
-        """Reuse the same fields inside Inputs or Restoration, without a frame."""
+        """Show shared fields for source simulation or restoration as applicable."""
         for label, widget in self.psf_rows:
             layout = widget.parentWidget().layout()
             if isinstance(layout, QFormLayout):
@@ -452,7 +451,7 @@ class MainWindow(QMainWindow):
             widget.setParent(self.psf_parking)
             if label is not None:
                 label.setParent(self.psf_parking)
-        if section in (0, 1):
+        if section == 1 or (section == 0 and self.source is not None):
             layout = self.control_pages.widget(section).layout()
             row = layout.getWidgetPosition(self.seed)[0] + 1 if section == 0 else 0
             for label, widget in self.psf_rows:
@@ -467,6 +466,23 @@ class MainWindow(QMainWindow):
 
     def update_sidebar_width(self):
         """Reserve room for inline fields and a vertical scrollbar in any section."""
+        option = QStyleOptionComboBox()
+        self.method.initStyleOption(option)
+        metrics = self.method.fontMetrics()
+        text_size = QSize(
+            max(
+                metrics.horizontalAdvance(self.method.itemText(i))
+                for i in range(self.method.count())
+            ),
+            metrics.height(),
+        )
+        self.method.setMinimumWidth(
+            self.method.style()
+            .sizeFromContents(
+                QStyle.ContentsType.CT_ComboBox, option, text_size, self.method
+            )
+            .width()
+        )
         margins = self.form.contentsMargins()
         minimum = max(
             self.control_pages.widget(i).layout().minimumSize().width()
@@ -515,18 +531,14 @@ class MainWindow(QMainWindow):
         )
         self.form.addRow(self.simulate_button)
         self.method = QComboBox()
-        self.method.addItems(["RL", "IF", "TRIF"])
-        for i, title in enumerate(
-            [
-                "Richardson–Lucy",
-                "Thresholded inverse filtering",
-                "Zeroth-order Tikhonov (L = I)",
-            ]
-        ):
-            self.method.setItemData(i, title, Qt.ItemDataRole.ToolTipRole)
-        self.method.setToolTip(
-            "RL: Richardson–Lucy. IF: thresholded inverse filtering. TRIF: zeroth-order Tikhonov."
-        )
+        for code, name in [
+            ("RL", "Richardson-Lucy"),
+            ("IF", "Thresholded inverse filtering"),
+            ("TRIF", "Zeroth-order Tikhonov"),
+        ]:
+            self.method.addItem(f"{code} ({name})", code)
+        self.method.currentTextChanged.connect(self.method.setToolTip)
+        self.method.setToolTip(self.method.currentText())
         self.threshold = self.number(1e-9, 1, 0.01, 9)
         self.regularization = self.number(1e-12, 1e6, 0.1, 12)
         self.capture = QCheckBox("Capture RL steps")
@@ -535,8 +547,6 @@ class MainWindow(QMainWindow):
         )
         self.capture.setChecked(True)
         self.form.addRow("Method", self.method)
-        self.method_info = WrappedLabel("Richardson–Lucy")
-        self.form.addRow(self.method_info)
         self.form.addRow("IF OTF threshold", self.threshold)
         self.form.addRow("TRIF lambda (L = I)", self.regularization)
         self.form.addRow(self.capture)
@@ -583,7 +593,7 @@ class MainWindow(QMainWindow):
             self.psf_mode.setCurrentText("Imported PSF")
             self.set_observation(observation, (0, 1))
             self.ground_truth = truth
-            self.method.setCurrentText("RL")
+            self.method.setCurrentIndex(self.method.findData("RL"))
             self.iterations.setValue(iterations)
             self.epsilon.setValue(1e-6)
             self.regularization.setValue(0.1)
@@ -686,7 +696,7 @@ class MainWindow(QMainWindow):
             self.ground_truth = images["ground_truth"]
             self.degradation = degradation
             self.psf_mode.setCurrentText("Imported PSF")
-            self.method.setCurrentText(config.method)
+            self.method.setCurrentIndex(self.method.findData(config.method))
             self.iterations.setValue(config.iterations)
             self.epsilon.setValue(config.epsilon)
             self.threshold.setValue(config.threshold)
@@ -761,7 +771,7 @@ class MainWindow(QMainWindow):
 
             def accept(result):
                 observation, details, truth = result
-                self.set_observation(observation, (0, data_range))
+                self.set_observation(observation, (self.low.value(), self.high.value()))
                 self.source = self.ground_truth = truth
                 self.degradation = details
                 self.truth_info.setText(
@@ -778,7 +788,7 @@ class MainWindow(QMainWindow):
         return RunConfig(
             self.iterations.value(),
             self.epsilon.value(),
-            self.method.currentText(),
+            self.method.currentData(),
             self.threshold.value(),
             self.regularization.value(),
             self.data_range.value(),
@@ -992,6 +1002,15 @@ class MainWindow(QMainWindow):
             self.update_controls()
 
     def update_controls(self):
+        if hasattr(self, "psf_rows"):
+            section = self.control_pages.currentIndex()
+            target = (
+                self.control_pages.widget(section)
+                if section == 1 or (section == 0 and self.source is not None)
+                else self.psf_parking
+            )
+            if self.psf_mode.parentWidget() is not target:
+                self.place_psf_controls(section)
         gaussian = self.psf_mode.currentText() == "Gaussian"
         psf_ready = gaussian or self.imported_psf is not None
         ready = self.observation is not None and psf_ready
@@ -999,14 +1018,7 @@ class MainWindow(QMainWindow):
         self.psf_file.setText(Path(psf_source).name if psf_source else "")
         self.psf_file.setCursorPosition(0)
         self.psf_file.setToolTip(psf_source)
-        method = self.method.currentText()
-        self.method_info.setText(
-            {
-                "RL": "Richardson–Lucy",
-                "IF": "Thresholded inverse filtering",
-                "TRIF": "Zeroth-order Tikhonov (identity regularizer)",
-            }[method]
-        )
+        method = self.method.currentData()
         for control, enabled in [
             (self.psf_file, not gaussian),
             (self.sigma, gaussian),

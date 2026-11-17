@@ -10,8 +10,11 @@ Do not publish or redistribute the research assets before confirming their right
 
 The sidebar has four expandable sections: Inputs & simulation, Restoration,
 Display & history, and Experiment files. PSF and intensity fields appear only
-inside Inputs or Restoration, without a separate frame. Inputs places them after
-Noise seed and before Generate; Restoration places them above the algorithm
+inside Restoration and, when a simulation source is available, Inputs without a
+separate frame. Inputs hides these fields at startup, after loading a saved
+example, or after opening a degraded image. Opening a source reveals them after
+Noise seed and before Generate, including for regeneration afterward.
+Restoration places them above the algorithm
 settings. The row order is PSF mode, Open PSF, Gaussian sigma, then Intensity
 range L. Open PSF is a clickable filename field: it is blank before a file is
 selected and shows the filename afterward. Click it or focus it and press Enter
@@ -38,8 +41,10 @@ current display settings remain in Display & history.
    regenerate noise or run restoration. The three choices are Cells, Bars, and
    Fibers reference. Each loads IF threshold 0.1, TRIF lambda 0.1, RL 5 iterations,
    epsilon 1e-6, and L=1 for the saved sigma-2, photon-200, seed-0 case.
-2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.
-   The PSF and L fields retain the settings from Inputs. Gaussian sigma is
+2. Expand Restoration. The Method selector shows RL (Richardson-Lucy),
+   IF (Thresholded inverse filtering), and TRIF (Zeroth-order Tikhonov) without
+   a separate method-description row. Choose a method and edit its parameters.
+   PSF and L use the settings loaded with the preset. Gaussian sigma is
    used only when PSF is Gaussian. Imported centered PSFs are center-padded to
    image size and normalized to unit sum.
    Inactive parameters are dimmed. Small decimal parameters use adaptive arrow
@@ -84,10 +89,10 @@ values. The input tooltip reports the applied policy. On load, the shared displa
 starts at the unsigned-integer scale (255 or 65535), or [0, 1] for normalized
 integers; other custom inputs use input min/max. Saved examples use [0, 1].
 This suggestion changes viewing only: numerical arrays and intensity L are kept.
-For preserved integers, explicitly set L to the image's declared scale, or reopen
+For preserved integers, explicitly set L in Restoration to the image's declared scale, or reopen
 with normalization. Display & history can change the shared display range.
 
-Open optional ground truth uses the same loading policy. In Inputs or Restoration,
+Open optional ground truth uses the same loading policy. In Restoration,
 set Intensity range L to the ground truth's declared intensity scale (for example,
 1 for normalized research pixels or 255 for preserved 8-bit pixels). Metrics are
 N/A with an explanation if truth is missing, dimensions differ, either dimension
@@ -101,7 +106,11 @@ current observation and restoration preview while retaining history. Historical
 runs can still be inspected; View current inputs returns to the pending source.
 Configure photon level, seed, PSF and L in Inputs & simulation, then explicitly
 click Generate / regenerate degradation. On success, Current observation shows the degraded image,
-the source stays as ground truth, and restoration becomes available. If generation
+the source stays as ground truth, and restoration becomes available. Generate
+retains the current shared display range, including manual display settings;
+source pixels and displayed brightness stay unchanged as simulation parameters
+change. The new observation uses the same display range. L remains a simulation
+and measurement parameter, independent of display settings. If generation
 fails, no observation is created and the source remains available for correction.
 Saved examples and Open degraded image provide observations immediately.
 The model is circular blur followed by Poisson sampling of
