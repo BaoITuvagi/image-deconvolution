@@ -73,6 +73,23 @@ def verify_desktop(destination):
             checks.append("Missing observation rejected by the UI")
 
             window.control_pages.setCurrentIndex(0)
+            assert window.saved_example.count() == 3
+            for index, name in enumerate(("cells", "bars", "fibers")):
+                assert (
+                    window.saved_example.itemText(index)
+                    == f"{name.title()} — reference"
+                )
+                window.saved_example.setCurrentIndex(index)
+                window.sample_button.click()
+                assert name in window.observation.source
+                assert window.threshold.value() == 0.1
+                assert window.regularization.value() == 0.1
+                assert window.iterations.value() == 5
+                assert window.epsilon.value() == 1e-6
+                assert window.data_range.value() == 1
+                assert window.record is None and window.worker is None
+                assert window.control_pages.currentIndex() == 0
+            window.saved_example.setCurrentIndex(0)
             window.sample_button.click()
             pump()
             assert window.observation.pixels.shape == (256, 256)
@@ -84,6 +101,13 @@ def verify_desktop(destination):
             for section in range(window.control_pages.count()):
                 window.control_pages.setCurrentIndex(section)
                 pump()
+                assert window.psf_group.isVisible()
+                assert window.controls.rect().contains(window.psf_group.geometry())
+                assert window.psf_group.geometry().bottom() < window.sidebar_scroll.y()
+                assert all(
+                    control.parentWidget() is window.psf_group
+                    for control in (window.psf_mode, window.sigma, window.data_range)
+                )
                 for control, label in window.control_labels.items():
                     if control.isVisible():
                         assert label.text().endswith(":") and not label.wordWrap()
@@ -162,12 +186,17 @@ def verify_desktop(destination):
             assert window.degradation["seed"] == 17
             window.threshold.setValue(0.02)
             window.iterations.setValue(10)
+            window.sigma.setValue(3)
+            window.data_range.setValue(2)
             np.testing.assert_array_equal(window.observation.pixels, observed)
             window.clear_history()
             window.control_pages.setCurrentIndex(1)
             window.compare_button.click()
             wait()
             assert [r.config.method for r in window.history] == ["IF", "TRIF", "RL"]
+            assert all(r.config.data_range == 2 for r in window.history)
+            assert all("sigma=3" in r.psf.source for r in window.history)
+            assert window.degradation["data_range"] == 1
             assert all(r.quality is not None for r in window.history)
             assert all(r.input_quality is not None for r in window.history)
             assert {
@@ -189,7 +218,10 @@ def verify_desktop(destination):
             assert window.record.input_quality is None
             checks.append("No quality measurement without ground truth")
 
-            window.load_bars()
+            window.saved_example.setCurrentIndex(1)
+            window.sample_button.click()
+            assert window.iterations.value() == 5
+            window.iterations.setValue(200)
             window.run_button.click()
             wait()
             assert len(window.record.steps) <= 8

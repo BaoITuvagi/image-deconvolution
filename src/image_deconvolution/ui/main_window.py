@@ -91,10 +91,9 @@ class MainWindow(QMainWindow):
         self.form.addRow(self.load_button)
         self.saved_example = QComboBox()
         for title, preset in [
-            ("Cells — reference, RL 5", ("cells", 5)),
-            ("Bars — iteration study, RL 100", ("bars", 100)),
-            ("Fibers — reference, RL 5", ("fibers", 5)),
-            ("Bars — reference, RL 5", ("bars", 5)),
+            ("Cells — reference", ("cells", 5)),
+            ("Bars — reference", ("bars", 5)),
+            ("Fibers — reference", ("fibers", 5)),
         ]:
             self.saved_example.addItem(title, preset)
         self.sample_button = QToolButton()
@@ -331,17 +330,12 @@ class MainWindow(QMainWindow):
             (
                 "Restoration",
                 [
-                    "psf_mode",
-                    "sigma",
-                    "Open PSF…",
-                    "psf_info",
                     "method",
                     "method_info",
                     "threshold",
                     "regularization",
                     "iterations",
                     "epsilon",
-                    "data_range",
                     "capture",
                     "Run selected method",
                     "Compare IF, TRIF, and RL",
@@ -414,9 +408,8 @@ class MainWindow(QMainWindow):
             widget.setTextFormat(Qt.TextFormat.PlainText)
             information_layout.addWidget(widget)
         rows["image_information"] = (None, self.image_information)
-        for title, keys in groups:
-            page = QWidget()
-            layout = QFormLayout(page)
+
+        def add_rows(layout, keys):
             layout.setFieldGrowthPolicy(
                 QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
             )
@@ -429,18 +422,37 @@ class MainWindow(QMainWindow):
                 if label is not None:
                     label.setText(label.text().rstrip(":") + ":")
                     self.control_labels[widget] = label
+
+        self.psf_group = QGroupBox("PSF && intensity")
+        add_rows(
+            QFormLayout(self.psf_group),
+            ["psf_mode", "sigma", "Open PSF…", "psf_info", "data_range"],
+        )
+        self.form.addRow(self.psf_group)
+        for title, keys in groups:
+            page = QWidget()
+            layout = QFormLayout(page)
+            add_rows(layout, keys)
             self.control_pages.addItem(page, title)
         if rows:
             raise RuntimeError(f"Unassigned workflow controls: {list(rows)}")
-        self.form.addRow(self.control_pages)
+        # Scroll only the workflow sections so PSF and L stay accessible.
+        self.sidebar_scroll.takeWidget()
+        self.centralWidget().replaceWidget(0, self.controls)
+        self.sidebar_scroll.setWidget(self.control_pages)
+        self.form.addRow(self.sidebar_scroll)
+        self.centralWidget().setSizes([380, 900])
         self.update_sidebar_width()
 
     def update_sidebar_width(self):
         """Reserve room for inline fields and a vertical scrollbar in any section."""
         margins = self.form.contentsMargins()
         minimum = max(
-            self.control_pages.widget(i).layout().minimumSize().width()
-            for i in range(self.control_pages.count())
+            self.psf_group.minimumSizeHint().width(),
+            *(
+                self.control_pages.widget(i).layout().minimumSize().width()
+                for i in range(self.control_pages.count())
+            ),
         )
         self.sidebar_scroll.setMinimumWidth(
             max(
@@ -561,7 +573,7 @@ class MainWindow(QMainWindow):
             self.iterations.setValue(iterations)
             self.epsilon.setValue(1e-6)
             self.regularization.setValue(0.1)
-            self.threshold.setValue(0.01)
+            self.threshold.setValue(0.1)
             self.capture.setChecked(True)
             self.data_range.setValue(1)
             self.low.setValue(0)
@@ -569,8 +581,7 @@ class MainWindow(QMainWindow):
             self.psf_info.setText(
                 "Saved sigma-2 PSF. Unit normalization; circular boundaries."
             )
-            purpose = " Inspect early and late iterations." if iterations == 100 else ""
-            self.truth_info.setText(f"Saved {name} ground truth; L=1.{purpose}")
+            self.truth_info.setText(f"Saved {name} ground truth; L=1.")
             self.mark_changed()
             self.refresh_views()
             self.tabs.setCurrentIndex(0)
@@ -924,7 +935,7 @@ class MainWindow(QMainWindow):
         scale_note = (
             f"\nImage scale: [0, {image.nominal_range:g}]\nSet intensity L to this scale for metrics."
             if image.nominal_range is not None
-            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nIntensity L is set in Restoration."
+            else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]\nSet intensity L in PSF & intensity."
         )
         role = (
             "Source file"
@@ -956,7 +967,7 @@ class MainWindow(QMainWindow):
         self.load_research("cells")
 
     def load_bars(self):
-        self.load_research("bars", 100)
+        self.load_research("bars")
 
     def mark_changed(self, *_):
         self.revision += 1
@@ -1017,7 +1028,7 @@ class MainWindow(QMainWindow):
         )
         self.simulate_button.setEnabled(psf_ready and self.source is not None)
         self.simulate_button.setToolTip(
-            "Use the current PSF and intensity L from Restoration."
+            "Use the current settings in PSF & intensity."
             if self.source is not None
             else "Open source for simulation first; saved examples are already degraded."
         )

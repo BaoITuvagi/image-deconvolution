@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/source-generation/Image Deconvolution/`;
+The updated local distribution is `dist/shared-psf/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -20,10 +20,11 @@ and [third-party notices](docs/third-party-notices.md).
 
 ## Features and quick demonstration
 
-1. Inputs & simulation > Saved example > Cells — reference, RL 5 > Load opens
+1. Inputs & simulation > Saved example > Cells — reference > Load opens
    saved float TIFF input, ground truth, and the matching PSF. The Load button sits
    beside the selector; the sidebar stays on Inputs & simulation. Loading does
-   not regenerate noise.
+   not regenerate noise or run restoration. Cells, Bars, and Fibers reference
+   presets use IF 0.1, TRIF 0.1, RL 5, epsilon 1e-6, and L=1.
 2. Restoration > Compare IF, TRIF, and RL runs all methods on identical input in
    a worker and displays all three outputs. Degraded-input and restored metrics
    share one ground truth/intensity scale; PSNR change makes improvements and
@@ -32,8 +33,8 @@ and [third-party notices](docs/third-party-notices.md).
    above the views list matching inputs only. View current inputs returns to the
    next run's workspace. Scroll to zoom and drag to pan the synchronized views.
 4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
-   iterations when compatible ground truth exists. The saved bars example shows
-   that late iterations can reduce quality.
+   iterations when compatible ground truth exists. Load Bars reference and change
+   RL iterations in Restoration to explore how late iterations can reduce quality.
 5. Saved references computes six new Python comparisons against saved DL2 TIFFs.
    It separates agreement from restoration quality and labels saved ImageJ
    measurements. It never executes Fiji/ImageJ or a JAR.
@@ -42,6 +43,9 @@ and [third-party notices](docs/third-party-notices.md).
 
 The app also opens single grayscale TIFF/PNG files, generates or imports centered
 normalized PSFs, and simulates seeded Poisson degradation explicitly.
+PSF & intensity stays visible above the sidebar sections, sharing PSF, sigma and
+L between simulation and restoration. Editing these settings keeps the current
+observation fixed until Generate is explicitly clicked.
 Opening a clean source shows it only as ground truth; the observation stays empty
 and restoration is disabled until Generate succeeds. Opening another source clears
 the current observation/output preview while retaining run history. Integer

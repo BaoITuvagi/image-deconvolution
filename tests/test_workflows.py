@@ -510,6 +510,59 @@ class DesktopTests(unittest.TestCase):
             self.assertIs(self.window.source, source)
             self.assertEqual(self.window.history, [previous])
 
+    def test_shared_psf_and_intensity_change_restoration_without_regeneration(self):
+        self.window.saved_example.setCurrentIndex(1)
+        self.window.sample_button.click()
+        observed = self.window.observation
+        original_psf = self.window.current_psf()
+        self.window.run_restoration()
+        self.wait_for_worker()
+        previous = self.window.record
+        previous_psf = previous.psf.pixels.copy()
+        np.testing.assert_array_equal(
+            previous_psf, prepare_psf(original_psf.pixels, observed.pixels.shape)
+        )
+
+        self.window.control_pages.setCurrentIndex(1)
+        self.app.processEvents()
+        self.assertTrue(self.window.psf_group.isVisible())
+        self.window.psf_mode.setCurrentText("Gaussian")
+        self.window.sigma.setValue(3)
+        self.window.data_range.setValue(2)
+        changed_psf = self.window.current_psf()
+        self.assertFalse(np.array_equal(changed_psf.pixels, original_psf.pixels))
+        self.assertIs(self.window.observation, observed)
+        self.assertEqual(self.window.history, [previous])
+        self.assertIn("earlier configuration", self.window.result_info.text())
+        self.window.run_button.click()
+        self.wait_for_worker()
+        current = self.window.record
+        np.testing.assert_array_equal(current.observation.pixels, observed.pixels)
+        np.testing.assert_array_equal(current.psf.pixels, changed_psf.pixels)
+        self.assertEqual(current.config.data_range, 2)
+        np.testing.assert_allclose(
+            current.output,
+            rl(observed.pixels, otf(changed_psf.pixels), 5),
+            rtol=0,
+            atol=1e-12,
+        )
+        np.testing.assert_array_equal(previous.psf.pixels, previous_psf)
+        self.assertEqual(previous.config.data_range, 1)
+
+        self.window.control_pages.setCurrentIndex(0)
+        self.app.processEvents()
+        self.assertTrue(self.window.data_range.isVisible())
+        self.assertEqual(self.window.sigma.value(), 3)
+        self.assertEqual(self.window.data_range.value(), 2)
+        self.assertIs(self.window.observation, observed)
+        # Iteration exploration remains available after loading Bars reference.
+        self.window.saved_example.setCurrentIndex(1)
+        self.window.sample_button.click()
+        self.window.iterations.setValue(200)
+        self.assertEqual(self.window.iterations.value(), 200)
+        self.assertEqual(len(self.window.history), 2)
+        self.assertFalse(self.warning.called, str(self.warning.call_args))
+
     def test_pending_source_with_imported_psf_and_observation_loading(self):
         with patch.object(
             self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
@@ -599,14 +652,47 @@ class DesktopTests(unittest.TestCase):
                         self.assertLess(
                             label.geometry().right(), control.geometry().left()
                         )
-                        viewport = self.window.control_pages.widget(
-                            section
-                        ).parentWidget()
+                        viewport = (
+                            self.window.psf_group
+                            if self.window.psf_group.isAncestorOf(control)
+                            else self.window.control_pages.widget(
+                                section
+                            ).parentWidget()
+                        )
                         position = control.mapTo(viewport, QPoint())
                         self.assertGreaterEqual(position.x(), 0)
                         self.assertLessEqual(
                             position.x() + control.width(), viewport.width()
                         )
+                self.assertTrue(self.window.psf_group.isVisible())
+                self.assertTrue(
+                    self.window.controls.rect().contains(
+                        self.window.psf_group.geometry()
+                    )
+                )
+                self.assertLess(
+                    self.window.psf_group.geometry().bottom(),
+                    self.window.sidebar_scroll.geometry().top(),
+                )
+                for control in (
+                    self.window.psf_mode,
+                    self.window.sigma,
+                    self.window.psf_button,
+                    self.window.psf_info,
+                    self.window.data_range,
+                ):
+                    self.assertIs(control.parentWidget(), self.window.psf_group)
+                self.window.sidebar_scroll.verticalScrollBar().setValue(
+                    self.window.sidebar_scroll.verticalScrollBar().maximum()
+                )
+                self.app.processEvents()
+                self.assertTrue(self.window.data_range.isVisible())
+                self.assertTrue(
+                    self.window.controls.rect().contains(
+                        self.window.psf_group.geometry()
+                    )
+                )
+                self.window.sidebar_scroll.verticalScrollBar().setValue(0)
             self.window.control_pages.setCurrentIndex(0)
             self.window.sample_button.click()
             for _ in range(10):
@@ -690,14 +776,33 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.window.clear_history_button.isEnabled())
         self.assertFalse(self.window.other_run.isEnabled())
         self.assertFalse(self.window.third_run.isEnabled())
-        for index, (name, iterations) in enumerate(
-            [("cells", 5), ("bars", 100), ("fibers", 5), ("bars", 5)]
-        ):
+        self.assertEqual(self.window.saved_example.count(), 3)
+        for index, name in enumerate(["cells", "bars", "fibers"]):
+            self.assertEqual(
+                self.window.saved_example.itemText(index),
+                f"{name.title()} — reference",
+            )
+            self.window.threshold.setValue(0.03)
+            self.window.regularization.setValue(0.02)
+            self.window.iterations.setValue(80)
+            self.window.epsilon.setValue(1e-5)
+            self.window.data_range.setValue(2)
+            self.window.control_pages.setCurrentIndex(0)
             self.window.saved_example.setCurrentIndex(index)
             self.window.sample_button.click()
             self.assertIn(name, self.window.observation.source)
-            self.assertEqual(self.window.iterations.value(), iterations)
+            self.assertEqual(self.window.threshold.value(), 0.1)
+            self.assertEqual(self.window.regularization.value(), 0.1)
+            self.assertEqual(self.window.iterations.value(), 5)
+            self.assertEqual(self.window.epsilon.value(), 1e-6)
+            self.assertEqual(self.window.data_range.value(), 1)
             self.assertEqual(self.window.control_pages.currentIndex(), 0)
+            self.assertEqual(self.window.psf_mode.currentText(), "Imported PSF")
+            self.assertIn("psf_s2.tif", self.window.imported_psf.source)
+            self.assertIn(name, self.window.ground_truth.source)
+            self.assertIsNone(self.window.worker)
+            self.assertIsNone(self.window.record)
+            self.assertEqual(self.window.history, [])
         self.assertTrue(self.window.run_button.isEnabled())
         self.assertFalse(self.window.sigma.isEnabled())
         self.assertFalse(self.window.threshold.isEnabled())

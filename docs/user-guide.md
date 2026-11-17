@@ -8,8 +8,11 @@ and saved examples. No development Python, Fiji, server, account, or network is
 required to run the desktop workflow. This is an unsigned local evaluation build.
 Do not publish or redistribute the research assets before confirming their rights.
 
-The sidebar has four expandable sections: Inputs & simulation, Restoration,
-Display & history, and Experiment files. The main tabs are Compare & history,
+The sidebar has a shared PSF & intensity group above four expandable sections:
+Inputs & simulation, Restoration, Display & history, and Experiment files.
+Gaussian/imported PSF, sigma, Open PSF, PSF information, and Intensity range L
+remain visible while switching or scrolling the workflow sections. There is one
+shared set of controls for simulation and restoration. The main tabs are Compare & history,
 RL inspector, and Saved references. Long sidebar sections can be scrolled.
 Field labels end with a colon and stay beside their controls. The sidebar
 reserves enough width for inline fields, including at larger text sizes.
@@ -21,13 +24,16 @@ initial viewing suggestion; current display settings remain in Display & history
 
 ## Restore a saved example
 
-1. In Inputs & simulation, choose Cells — reference, RL 5 and click Load beside
+1. In Inputs & simulation, choose Cells — reference and click Load beside
    the selector. The sidebar stays on Inputs & simulation. This opens the saved
    degraded float TIFF, its matching sigma-2 PSF, and ground truth. It does not
-   regenerate noise. The default example uses five RL iterations and L=1.
+   regenerate noise or run restoration. The three choices are Cells, Bars, and
+   Fibers reference. Each loads IF threshold 0.1, TRIF lambda 0.1, RL 5 iterations,
+   epsilon 1e-6, and L=1 for the saved sigma-2, photon-200, seed-0 case.
 2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.
-   Gaussian sigma is used only when PSF is Gaussian. Imported centered PSFs are
-   center-padded to image size and normalized to unit sum.
+   The shared PSF & intensity group supplies the PSF and L. Gaussian sigma is
+   used only when PSF is Gaussian. Imported centered PSFs are center-padded to
+   image size and normalized to unit sum.
    Inactive parameters are dimmed. Small decimal parameters use adaptive arrow
    steps. To configure a three-method comparison, select each method and edit its
    retained settings before clicking Compare.
@@ -73,7 +79,7 @@ This suggestion changes viewing only: numerical arrays and intensity L are kept.
 For preserved integers, explicitly set L to the image's declared scale, or reopen
 with normalization. Display & history can change the shared display range.
 
-Open optional ground truth uses the same loading policy. In Restoration, set
+Open optional ground truth uses the same loading policy. In PSF & intensity, set
 Intensity range L to the ground truth's declared intensity scale (for example,
 1 for normalized research pixels or 255 for preserved 8-bit pixels). Metrics are
 N/A with an explanation if truth is missing, dimensions differ, either dimension
@@ -85,7 +91,8 @@ Current ground truth only. Current observation stays empty with a Generate promp
 Run selected method and Compare remain disabled. Opening a new source clears the
 current observation and restoration preview while retaining history. Historical
 runs can still be inspected; View current inputs returns to the pending source.
-Configure the PSF, photon level, seed, and L, then explicitly click Generate /
+Configure PSF and L in the shared group, then photon level and seed in Inputs &
+simulation, and explicitly click Generate /
 regenerate degradation. On success, Current observation shows the degraded image,
 the source stays as ground truth, and restoration becomes available. If generation
 fails, no observation is created and the source remains available for correction.
@@ -93,8 +100,12 @@ Saved examples and Open degraded image provide observations immediately.
 The model is circular blur followed by Poisson sampling of
 `max(blur(source)/L, 0) * photons`, scaled back by `L/photons`. The maximum only
 removes tiny negative FFT roundoff at theoretical zeros. The source must lie in
-[0, L]. Changing method parameters, sigma, photon level, or seed alone never
-regenerates the observation. Saved TIFFs are preferred for report reproduction;
+[0, L]. L supplies the intensity scale for Poisson noise and quality metrics; the
+blur convolution itself uses the PSF. Changing PSF, L, method parameters, photon
+level, or seed alone never regenerates the observation. Restoration uses the
+currently selected PSF, so a different PSF can be tested against the same fixed
+observation. Historical runs retain their original PSF and L.
+Saved TIFFs are preferred for report reproduction;
 equal seeds across platforms do not promise equal noise pixels.
 
 ## Inspect Richardson-Lucy
@@ -112,8 +123,10 @@ SSIM separately. Infinite PSNR is preserved in measurements but omitted from the
 finite plot. These curves are exploratory and do not replace independently
 selected benchmark parameters.
 
-The Bars — iteration study preset sets 100 iterations. Its quality can rise and later fall,
-illustrating why a sharper-looking late estimate need not have better PSNR/SSIM.
+To explore iterations, load Bars — reference, then edit RL iterations in
+Restoration (for example, 5, 20, 80, or 200) and run again. Its quality can rise and
+later fall, illustrating why a sharper-looking late estimate need not have better
+PSNR/SSIM. These exploratory runs do not replace the five-iteration reference.
 Intermediate phases have their own clearly labeled display-only min/max range;
 comparison views retain the shared range. Zoom and pan affect inspection, not
 the full-image measurement region.
