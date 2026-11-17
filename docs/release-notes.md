@@ -3,6 +3,27 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The shared-controls update places PSF & intensity above the scrollable workflow
+sections. Gaussian/imported PSF, sigma, Open PSF, PSF information and intensity L
+remain accessible in both Inputs and Restoration. Editing them keeps the current
+observation fixed until Generate is explicitly clicked; restoration uses the
+currently selected PSF and L. Saved example now contains only Cells, Bars and
+Fibers reference. Their IF threshold is corrected from 0.01 to 0.1; TRIF 0.1,
+RL 5, epsilon 1e-6 and L=1 are retained. Load Bars reference and edit RL iterations
+to explore longer runs. Existing input order, inline Load, retained Inputs panel
+and explicit generation behavior are preserved. The updated local folder is
+`dist/shared-psf/Image Deconvolution`; earlier builds are retained.
+
+All 37 regression tests and eleven source/frozen desktop workflow groups passed.
+Coverage includes all three preset configurations, pinned shared controls at
+9/12/16-point text sizes, fixed observations after PSF/L edits, restoration with
+the changed PSF, and immutable historical settings. The EXE passed from an empty
+working directory with development Python removed from PATH. Native Windows
+self-inspection verified the three-item selector, retained Inputs selection,
+three-method reference comparison, the actual source file dialog, and changing
+sigma/L and generating an observation without leaving Inputs. Ruff lint/format
+and pip check passed. No new ImageJ execution occurred.
+
 The source-generation update shows a newly opened clean source only in Current
 ground truth. Current observation stays empty with a Generate prompt, and Run /
 Compare stay disabled until generation succeeds. Gaussian PSFs use the source
