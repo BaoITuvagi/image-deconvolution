@@ -3,6 +3,24 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The sidebar layout follow-up keeps field labels and their controls on one row,
+with a trailing colon, across all sidebar sections. Loading policy and Saved
+example precede the image-opening buttons. Photon level, seed, and Generate
+follow those buttons; labeled image details and ground-truth status are grouped
+at the bottom. The sidebar reserves room for fields and vertical scrollbars,
+including larger text sizes. Dropdown choices and numerical conventions are
+unchanged. The latest local folder is `dist/sidebar-layout/Image Deconvolution`;
+earlier builds are retained.
+
+For the sidebar follow-up, all 34 regression tests passed, including inline
+fields and horizontal-scroll checks at 9/12/16-point text sizes and default/minimum
+window layouts. Source and frozen builds passed all eleven desktop acceptance
+groups; the EXE ran from an empty working directory without development Python
+on PATH. Native Windows self-inspection confirmed the two loading choices,
+saved-example loading, the bottom image-information group, and inline labels in
+Inputs, Restoration, and Display & history. Ruff lint/format and pip check passed.
+No ImageJ execution occurred.
+
 The November 17, 2026 input-panel update places Load beside the saved-example
 selector and keeps Inputs & simulation open after loading. Wrapped input status
 messages now reserve their full height when their text, width, or font changes,

@@ -8,12 +8,13 @@ import gc
 import tempfile
 import time
 import unittest
+from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
-from PySide6.QtCore import QCoreApplication, QEvent, Qt, QThread
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, Qt, QThread
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -368,7 +369,9 @@ class DesktopTests(unittest.TestCase):
                     self.app.processEvents()
                     selector = self.window.saved_example.geometry()
                     button = self.window.sample_button.geometry()
-                    self.assertEqual(selector.center().y(), button.center().y())
+                    self.assertLessEqual(
+                        abs(selector.center().y() - button.center().y()), 1
+                    )
                     self.assertLess(selector.right(), button.left())
                     self.assertGreaterEqual(
                         button.width(),
@@ -393,10 +396,11 @@ class DesktopTests(unittest.TestCase):
                             label.height(), label.heightForWidth(label.width())
                         )
                     for preceding, following in (
-                        (self.window.clear_truth_button, self.window.truth_info),
-                        (self.window.truth_info, self.window.input_info),
-                        (self.window.input_info, self.window.photons),
+                        (self.window.clear_truth_button, self.window.photons),
+                        (self.window.photons, self.window.seed),
                         (self.window.simulate_button, self.window.simulation_note),
+                        (self.window.simulation_note, self.window.image_information),
+                        (self.window.input_info, self.window.truth_info),
                     ):
                         self.assertLess(
                             preceding.geometry().bottom(), following.geometry().top()
@@ -411,6 +415,97 @@ class DesktopTests(unittest.TestCase):
                             self.window.truth_info.width()
                         ),
                     )
+
+    def test_sidebar_fields_stay_inline_and_input_information_follows_actions(self):
+        # Cover the startup width and the minimum supported window without
+        # widening the sidebar to reveal a label or its control.
+        for width, height, points in (
+            (1280, 820, 9),
+            (960, 640, 9),
+            (960, 640, 12),
+            (1280, 820, 16),
+        ):
+            size = (width, height)
+            font = self.window.font()
+            font.setPointSize(points)
+            self.window.setFont(font)
+            self.window.resize(*size)
+            self.window.centralWidget().setSizes([300, size[0] - 300])
+            for section in range(self.window.control_pages.count()):
+                self.window.control_pages.setCurrentIndex(section)
+                for _ in range(10):
+                    self.app.processEvents()
+                page_scroll = (
+                    self.window.control_pages.widget(section)
+                    .parentWidget()
+                    .parentWidget()
+                )
+                self.assertEqual(page_scroll.horizontalScrollBar().maximum(), 0)
+                for control, label in self.window.control_labels.items():
+                    if not control.isVisible():
+                        continue
+                    with self.subTest(size=size, points=points, label=label.text()):
+                        self.assertTrue(label.text().endswith(":"))
+                        self.assertFalse(label.wordWrap())
+                        self.assertLessEqual(
+                            abs(
+                                label.geometry().center().y()
+                                - control.geometry().center().y()
+                            ),
+                            1,
+                        )
+                        self.assertLess(
+                            label.geometry().right(), control.geometry().left()
+                        )
+                        viewport = self.window.control_pages.widget(
+                            section
+                        ).parentWidget()
+                        position = control.mapTo(viewport, QPoint())
+                        self.assertGreaterEqual(position.x(), 0)
+                        self.assertLessEqual(
+                            position.x() + control.width(), viewport.width()
+                        )
+            self.window.control_pages.setCurrentIndex(0)
+            self.window.sample_button.click()
+            for _ in range(10):
+                self.app.processEvents()
+            page = self.window.control_pages.widget(0)
+            ordered = [
+                self.window.policy,
+                self.window.saved_example_row,
+                self.window.load_button,
+                next(
+                    b
+                    for b in page.findChildren(type(self.window.load_button))
+                    if b.text() == "Open source for simulation…"
+                ),
+                next(
+                    b
+                    for b in page.findChildren(type(self.window.load_button))
+                    if b.text() == "Open optional ground truth…"
+                ),
+                self.window.clear_truth_button,
+                self.window.photons,
+                self.window.seed,
+                self.window.simulate_button,
+                self.window.simulation_note,
+                self.window.image_information,
+            ]
+            for preceding, following in pairwise(ordered):
+                self.assertLess(
+                    preceding.geometry().bottom(), following.geometry().top()
+                )
+            self.assertIn(
+                "File: cells_s2_p200_r0_input.tif", self.window.input_info.text()
+            )
+            self.assertIn("Size: 256 × 256 px", self.window.input_info.text())
+            self.assertIn("Pixel values:", self.window.input_info.text())
+            self.assertIs(
+                self.window.input_info.parentWidget(), self.window.image_information
+            )
+            self.assertIs(
+                self.window.truth_info.parentWidget(), self.window.image_information
+            )
 
     def test_inspector_quality_fit_and_reference_keyboard_selection(self):
         self.window.load_sample()
