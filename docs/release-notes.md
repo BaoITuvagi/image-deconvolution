@@ -3,6 +3,27 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The compact-PSF update uses an inline Open PSF filename field instead of a
+button and separate summary. Click the field or press Enter/Space while it is
+focused to choose a file. It is blank until a file is selected, and saved
+examples show their bundled PSF filename. The shared row order is PSF mode,
+Open PSF, Gaussian sigma, then intensity L in both Inputs and Restoration.
+Gaussian mode disables Open PSF; Imported PSF disables Gaussian sigma. Switching
+modes retains both values. Redundant PSF summaries, instructions below Generate,
+and instructions in Image information are removed; factual metadata remains.
+Numerical PSF preparation, explicit generation and saved presets are unchanged.
+The new local folder is `dist/compact-psf/Image Deconvolution`; earlier builds
+are preserved.
+
+All 38 regression tests and eleven source/frozen workflow groups passed.
+Checks cover inline layout at 9/12/16-point text sizes, mode and panel switches,
+mouse/keyboard file selection, cancel/error retention, saved presets, explicit
+generation, restoration and experiment round trips. The EXE passed from an empty
+working directory with development Python removed from PATH. Native Windows
+self-validation covered the actual PSF file dialog, filename display, disabled
+fields under each mode, both panel placements and a successful RL restoration.
+Ruff lint/format and dependency checks passed. No new ImageJ execution occurred.
+
 The contextual-PSF update replaces the pinned sidebar group from the previous
 build. PSF, sigma, Open PSF, intensity L and PSF information now appear as plain
 rows only inside Inputs & simulation or Restoration. Inputs places them after

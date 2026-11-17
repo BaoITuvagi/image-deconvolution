@@ -387,10 +387,12 @@ class DesktopTests(unittest.TestCase):
                         self.app.processEvents()
                     self.assertTrue(self.window.simulate_button.isEnabled())
                     self.assertEqual(self.window.control_pages.currentIndex(), 0)
+                    self.assertIn("Source ground truth:", self.window.truth_info.text())
+                    self.assertNotIn("Click", self.window.truth_info.text())
+                    self.assertNotIn("Set intensity L", self.window.input_info.text())
                     for label in (
                         self.window.truth_info,
                         self.window.input_info,
-                        self.window.simulation_note,
                     ):
                         self.assertGreaterEqual(
                             label.height(), label.heightForWidth(label.width())
@@ -398,8 +400,7 @@ class DesktopTests(unittest.TestCase):
                     for preceding, following in (
                         (self.window.clear_truth_button, self.window.photons),
                         (self.window.photons, self.window.seed),
-                        (self.window.simulate_button, self.window.simulation_note),
-                        (self.window.simulation_note, self.window.image_information),
+                        (self.window.simulate_button, self.window.image_information),
                         (self.window.input_info, self.window.truth_info),
                     ):
                         self.assertLess(
@@ -676,10 +677,9 @@ class DesktopTests(unittest.TestCase):
                         )
                 for control in (
                     self.window.psf_mode,
+                    self.window.psf_file,
                     self.window.sigma,
-                    self.window.psf_button,
                     self.window.data_range,
-                    self.window.psf_info,
                 ):
                     self.assertEqual(control.isVisible(), section in (0, 1))
                     self.assertIs(
@@ -693,10 +693,9 @@ class DesktopTests(unittest.TestCase):
                     for row, control in enumerate(
                         (
                             self.window.psf_mode,
+                            self.window.psf_file,
                             self.window.sigma,
-                            self.window.psf_button,
                             self.window.data_range,
-                            self.window.psf_info,
                             self.window.method,
                         )
                     ):
@@ -724,12 +723,10 @@ class DesktopTests(unittest.TestCase):
                 self.window.photons,
                 self.window.seed,
                 self.window.psf_mode,
+                self.window.psf_file,
                 self.window.sigma,
-                self.window.psf_button,
                 self.window.data_range,
-                self.window.psf_info,
                 self.window.simulate_button,
-                self.window.simulation_note,
                 self.window.image_information,
             ]
             for preceding, following in pairwise(ordered):
@@ -741,6 +738,7 @@ class DesktopTests(unittest.TestCase):
             )
             self.assertIn("Size: 256 × 256 px", self.window.input_info.text())
             self.assertIn("Pixel values:", self.window.input_info.text())
+            self.assertNotIn("Set intensity L", self.window.input_info.text())
             self.assertIs(
                 self.window.input_info.parentWidget(), self.window.image_information
             )
@@ -837,9 +835,57 @@ class DesktopTests(unittest.TestCase):
             self.assertAlmostEqual(control.value(), before, places=12)
         self.window.psf_mode.setCurrentText("Gaussian")
         self.assertTrue(self.window.sigma.isEnabled())
-        self.assertIn("Gaussian sigma=", self.window.psf_info.text())
+        self.assertFalse(self.window.psf_file.isEnabled())
         self.window.psf_mode.setCurrentText("Imported PSF")
-        self.assertIn("psf_s2.tif", self.window.psf_info.text())
+        self.assertTrue(self.window.psf_file.isEnabled())
+        self.assertEqual(self.window.psf_file.text(), "psf_s2.tif")
+
+    def test_psf_file_picker_modes_cancel_and_invalid_file_preserve_state(self):
+        field = self.window.psf_file
+        label = self.window.control_labels[field]
+        self.assertEqual(label.text(), "Open PSF:")
+        self.assertEqual(field.text(), "")
+        self.assertFalse(field.isEnabled())
+        self.assertFalse(label.isEnabled())
+        with patch.object(self.window, "choose_image", return_value="") as choose:
+            QTest.mouseClick(field, Qt.MouseButton.LeftButton)
+            choose.assert_not_called()
+        self.window.psf_mode.setCurrentText("Imported PSF")
+        self.assertTrue(field.isEnabled())
+        self.assertTrue(label.isEnabled())
+        self.assertFalse(self.window.run_button.isEnabled())
+        with patch.object(
+            self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))
+        ) as choose:
+            QTest.mouseClick(field, Qt.MouseButton.LeftButton)
+            choose.assert_called_once_with("Open centered PSF")
+        selected = self.window.imported_psf
+        self.assertEqual(field.text(), "psf_s2.tif")
+        self.assertTrue(field.isReadOnly())
+        self.window.sigma.setValue(3)
+        for section in (1, 0):
+            self.window.control_pages.setCurrentIndex(section)
+            self.app.processEvents()
+            for key in (Qt.Key.Key_Return, Qt.Key.Key_Space):
+                with patch.object(
+                    self.window, "choose_image", return_value=""
+                ) as choose:
+                    field.setFocus()
+                    QTest.keyClick(field, key)
+                    choose.assert_called_once()
+                self.assertIs(self.window.imported_psf, selected)
+            self.window.psf_mode.setCurrentText("Gaussian")
+            self.assertFalse(field.isEnabled())
+            self.assertFalse(label.isEnabled())
+            self.assertTrue(self.window.sigma.isEnabled())
+            self.assertEqual(field.text(), "psf_s2.tif")
+            self.window.psf_mode.setCurrentText("Imported PSF")
+            self.assertEqual(self.window.sigma.value(), 3)
+        with patch.object(self.window, "choose_image", return_value="missing.tif"):
+            QTest.mouseClick(field, Qt.MouseButton.LeftButton)
+        self.assertTrue(self.warning.called)
+        self.assertIs(self.window.imported_psf, selected)
+        self.assertEqual(field.text(), "psf_s2.tif")
 
     def test_preserved_integer_display_does_not_change_pixels_or_L(self):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
@@ -848,6 +894,8 @@ class DesktopTests(unittest.TestCase):
             Image.fromarray(pixels).save(path)
             self.window.set_observation(read_image(path))
             self.assertEqual(self.window.high.value(), 255)
+            self.assertIn("Image scale: [0, 255]", self.window.input_info.text())
+            self.assertNotIn("Set intensity L", self.window.input_info.text())
             self.assertEqual(self.window.data_range.value(), 1)
             np.testing.assert_array_equal(self.window.observation.pixels, pixels)
             displayed = self.window.input_view.scene().items()[0].pixmap().toImage()

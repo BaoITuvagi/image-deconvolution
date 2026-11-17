@@ -12,7 +12,11 @@ The sidebar has four expandable sections: Inputs & simulation, Restoration,
 Display & history, and Experiment files. PSF and intensity fields appear only
 inside Inputs or Restoration, without a separate frame. Inputs places them after
 Noise seed and before Generate; Restoration places them above the algorithm
-settings. Intensity range L is immediately below Open PSF. Both panels use the
+settings. The row order is PSF mode, Open PSF, Gaussian sigma, then Intensity
+range L. Open PSF is a clickable filename field: it is blank before a file is
+selected and shows the filename afterward. Click it or focus it and press Enter
+or Space to open the file picker. It is dimmed and disabled in Gaussian mode;
+Gaussian sigma is dimmed and disabled in Imported PSF mode. Both panels use the
 same settings; switching panels retains their values. Display & history and
 Experiment files hide these fields. The main tabs are Compare & history,
 RL inspector, and Saved references. Long sidebar sections can be scrolled.
@@ -20,9 +24,11 @@ Field labels end with a colon and stay beside their controls. The sidebar
 reserves enough width for inline fields, including at larger text sizes.
 Loading policy and Saved example come first, followed by the image-opening and
 ground-truth buttons, photon level, seed, PSF/intensity fields, and Generate.
-Image information is grouped at the bottom: file, dimensions, numerical pixel range, intensity-scale
-guidance, and ground-truth status. A display range labeled "on load" records the
-initial viewing suggestion; current display settings remain in Display & history.
+Image information is grouped at the bottom: file, dimensions, numerical pixel
+range, image scale when known, and ground-truth status. PSF summary text and
+standalone instructions below Generate or in Image information are omitted.
+A display range labeled "on load" records the initial viewing suggestion;
+current display settings remain in Display & history.
 
 ## Restore a saved example
 
