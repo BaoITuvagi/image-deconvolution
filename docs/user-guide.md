@@ -8,17 +8,19 @@ and saved examples. No development Python, Fiji, server, account, or network is
 required to run the desktop workflow. This is an unsigned local evaluation build.
 Do not publish or redistribute the research assets before confirming their rights.
 
-The sidebar has a shared PSF & intensity group above four expandable sections:
-Inputs & simulation, Restoration, Display & history, and Experiment files.
-Gaussian/imported PSF, sigma, Open PSF, PSF information, and Intensity range L
-remain visible while switching or scrolling the workflow sections. There is one
-shared set of controls for simulation and restoration. The main tabs are Compare & history,
+The sidebar has four expandable sections: Inputs & simulation, Restoration,
+Display & history, and Experiment files. PSF and intensity fields appear only
+inside Inputs or Restoration, without a separate frame. Inputs places them after
+Noise seed and before Generate; Restoration places them above the algorithm
+settings. Intensity range L is immediately below Open PSF. Both panels use the
+same settings; switching panels retains their values. Display & history and
+Experiment files hide these fields. The main tabs are Compare & history,
 RL inspector, and Saved references. Long sidebar sections can be scrolled.
 Field labels end with a colon and stay beside their controls. The sidebar
 reserves enough width for inline fields, including at larger text sizes.
 Loading policy and Saved example come first, followed by the image-opening and
-ground-truth buttons, photon level, seed, and Generate. Image information is
-grouped at the bottom: file, dimensions, numerical pixel range, intensity-scale
+ground-truth buttons, photon level, seed, PSF/intensity fields, and Generate.
+Image information is grouped at the bottom: file, dimensions, numerical pixel range, intensity-scale
 guidance, and ground-truth status. A display range labeled "on load" records the
 initial viewing suggestion; current display settings remain in Display & history.
 
@@ -31,7 +33,7 @@ initial viewing suggestion; current display settings remain in Display & history
    Fibers reference. Each loads IF threshold 0.1, TRIF lambda 0.1, RL 5 iterations,
    epsilon 1e-6, and L=1 for the saved sigma-2, photon-200, seed-0 case.
 2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.
-   The shared PSF & intensity group supplies the PSF and L. Gaussian sigma is
+   The PSF and L fields retain the settings from Inputs. Gaussian sigma is
    used only when PSF is Gaussian. Imported centered PSFs are center-padded to
    image size and normalized to unit sum.
    Inactive parameters are dimmed. Small decimal parameters use adaptive arrow
@@ -79,8 +81,8 @@ This suggestion changes viewing only: numerical arrays and intensity L are kept.
 For preserved integers, explicitly set L to the image's declared scale, or reopen
 with normalization. Display & history can change the shared display range.
 
-Open optional ground truth uses the same loading policy. In PSF & intensity, set
-Intensity range L to the ground truth's declared intensity scale (for example,
+Open optional ground truth uses the same loading policy. In Inputs or Restoration,
+set Intensity range L to the ground truth's declared intensity scale (for example,
 1 for normalized research pixels or 255 for preserved 8-bit pixels). Metrics are
 N/A with an explanation if truth is missing, dimensions differ, either dimension
 does not exceed 10, or truth lies outside [0, L]. Clear ground truth removes it
@@ -91,9 +93,8 @@ Current ground truth only. Current observation stays empty with a Generate promp
 Run selected method and Compare remain disabled. Opening a new source clears the
 current observation and restoration preview while retaining history. Historical
 runs can still be inspected; View current inputs returns to the pending source.
-Configure PSF and L in the shared group, then photon level and seed in Inputs &
-simulation, and explicitly click Generate /
-regenerate degradation. On success, Current observation shows the degraded image,
+Configure photon level, seed, PSF and L in Inputs & simulation, then explicitly
+click Generate / regenerate degradation. On success, Current observation shows the degraded image,
 the source stays as ground truth, and restoration becomes available. If generation
 fails, no observation is created and the source remains available for correction.
 Saved examples and Open degraded image provide observations immediately.

@@ -3,6 +3,26 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The contextual-PSF update replaces the pinned sidebar group from the previous
+build. PSF, sigma, Open PSF, intensity L and PSF information now appear as plain
+rows only inside Inputs & simulation or Restoration. Inputs places them after
+Noise seed and before Generate; Restoration places them before the algorithm
+controls. L is immediately below Open PSF. Switching panels reuses the same
+fields without changing values, observations or run history; Display & history
+and Experiment files hide them. Saved reference presets and explicit generation
+are retained. The updated local folder is
+`dist/contextual-psf/Image Deconvolution`; earlier builds are preserved.
+
+All 37 regression tests and eleven source/frozen desktop workflow groups passed.
+Checks cover row placement and visibility, inline fields at 9/12/16-point text
+sizes, repeated panel switches without changed configuration or observation,
+saved presets, generation, restoration and experiment round trips. The EXE passed
+from an empty working directory without development Python on PATH. Native
+Windows self-inspection verified sigma/L edits in Inputs, retained values in
+Restoration, hidden fields in Display/history and Experiment files, the actual
+source file dialog, explicit Generate, and a successful restoration afterward.
+Lint, formatting and dependency checks passed. No new ImageJ execution occurred.
+
 The shared-controls update places PSF & intensity above the scrollable workflow
 sections. Gaussian/imported PSF, sigma, Open PSF, PSF information and intensity L
 remain accessible in both Inputs and Restoration. Editing them keeps the current
