@@ -5,6 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import gc
+import json
 import tempfile
 import threading
 import time
@@ -599,6 +600,21 @@ class DesktopTests(unittest.TestCase):
                 return_value=(str(Path(folder) / "experiment.json"), ""),
             ):
                 self.window.open_experiment()
+                self.wait_for_worker()
+            reopened = self.window.record
+            self.assertEqual(
+                reopened.saved_from, str((Path(folder) / "experiment.json").resolve())
+            )
+            np.testing.assert_array_equal(reopened.output, output)
+            self.assertEqual(reopened.quality, record.quality)
+            self.assertEqual(reopened.seconds, record.seconds)
+            self.assertEqual(reopened.curve, record.curve)
+            self.assertIs(self.window.inspector.record, reopened)
+            self.assertEqual(self.window.inspector.iteration.count(), len(record.steps))
+            self.assertEqual(self.window.tabs.currentIndex(), 0)
+            self.assertIn(
+                "No restoration was executed", self.window.statusBar().currentMessage()
+            )
             self.window.run_restoration()
             self.wait_for_worker()
             np.testing.assert_allclose(
@@ -1362,13 +1378,105 @@ class DesktopTests(unittest.TestCase):
                     return_value=(str(folder / "experiment.json"), ""),
                 ):
                     self.window.open_experiment()
+                    self.wait_for_worker()
                 self.assertEqual(self.window.current_config(), record.config)
                 self.assertEqual(self.window.method.currentData(), code)
+                np.testing.assert_array_equal(self.window.record.output, record.output)
+                self.assertEqual(
+                    self.window.inspector.phase.count(), 5 if code == "RL" else 0
+                )
                 self.window.run_button.click()
                 self.wait_for_worker()
                 np.testing.assert_allclose(
                     self.window.record.output, record.output, rtol=0, atol=1e-12
                 )
+        self.assertFalse(self.warning.called, str(self.warning.call_args))
+
+    def test_reopen_selected_history_no_execution_and_invalid_bundle_keeps_workspace(
+        self,
+    ):
+        w = self.window
+        w.load_sample()
+        w.run_restoration()
+        self.wait_for_worker()
+        original = w.record
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            path = export_bundle(Path(directory) / "selected", original)
+            w.load_bars()
+            w.run_restoration()
+            self.wait_for_worker()
+            existing = w.record
+            w.select_slot(2)
+            with (
+                patch(
+                    "PySide6.QtWidgets.QFileDialog.getOpenFileName",
+                    return_value=(str(path), ""),
+                ),
+                patch(
+                    "image_deconvolution.ui.main_window.restore",
+                    side_effect=AssertionError("Reopen must not restore"),
+                ),
+            ):
+                w.open_experiment()
+                self.wait_for_worker()
+            reopened = w.record
+            self.assertEqual(len(w.history), 3)
+            self.assertEqual(w.active_slot, 2)
+            self.assertIs(w.slot_records[2], reopened)
+            self.assertIsNone(w.slot_records[0])
+            self.assertTrue(any(run is existing for run in w.history))
+            np.testing.assert_array_equal(reopened.output, original.output)
+            for iteration, phases in original.steps.items():
+                w.inspector.iteration.setCurrentIndex(
+                    w.inspector.iteration.findData(iteration)
+                )
+                for phase, array in phases.items():
+                    w.inspector.phase.setCurrentText(phase)
+                    np.testing.assert_array_equal(w.inspector.view.array, array)
+            w.select_history(1)
+            self.assertIs(w.inspector.record, existing)
+            w.select_history(2)
+            self.assertIs(w.inspector.record, reopened)
+            snapshot = w.observation, w.current_config(), w.record, len(w.history)
+            metadata = json.loads(path.read_text())
+            metadata["result"]["array"]["file_sha256"] = "tampered"
+            path.write_text(json.dumps(metadata))
+            with patch(
+                "PySide6.QtWidgets.QFileDialog.getOpenFileName",
+                return_value=(str(path), ""),
+            ):
+                w.open_experiment()
+                self.wait_for_worker()
+            self.assertTrue(self.warning.called)
+            self.assertIs(w.observation, snapshot[0])
+            self.assertEqual(w.current_config(), snapshot[1])
+            self.assertIs(w.record, snapshot[2])
+            self.assertEqual(len(w.history), snapshot[3])
+
+    def test_reopen_missing_input_locate_cancel_and_uncaptured_inspector(self):
+        w = self.window
+        w.load_sample()
+        w.capture.setChecked(False)
+        w.clear_truth()
+        w.run_restoration()
+        self.wait_for_worker()
+        original = w.record
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            path = export_bundle(Path(directory) / "selected", original)
+            moved = Path(directory) / "moved.npy"
+            (path.parent / "observation.npy").rename(moved)
+            for pick, expected_count in [("", 1), (str(moved), 2)]:
+                with patch(
+                    "PySide6.QtWidgets.QFileDialog.getOpenFileName",
+                    side_effect=[(str(path), ""), (pick, "")],
+                ):
+                    w.open_experiment()
+                    self.wait_for_worker()
+                self.assertEqual(len(w.history), expected_count)
+            self.assertEqual(w.inspector.iteration.count(), 0)
+            self.assertIn("no RL checkpoints", w.inspector.range_info.text())
+            self.assertIsNone(w.record.quality)
+            self.assertEqual(w.baseline.text(), "Degraded input: N/A")
         self.assertFalse(self.warning.called, str(self.warning.call_args))
 
     def test_psf_visibility_tracks_source_and_degraded_transitions(self):

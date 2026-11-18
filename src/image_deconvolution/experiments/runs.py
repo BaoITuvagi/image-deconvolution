@@ -56,6 +56,8 @@ class RunRecord:
     curve: list = field(default_factory=list)
     degradation: dict | None = None
     input_quality: dict | None = None
+    saved_from: str | None = None
+    inspection_note: str = ""
 
     @property
     def psnr_change(self):

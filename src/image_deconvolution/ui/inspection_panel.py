@@ -60,7 +60,9 @@ class InspectionPanel(QWidget):
         ):
             self.view.set_image(None, 0, 1)
             self.range_info.setText(
-                "Select an RL run with Capture RL steps enabled. Quality curves require suitable ground truth."
+                self.record.inspection_note
+                if self.record is not None and self.record.inspection_note
+                else "Select an RL run with Capture RL steps enabled. Quality curves require suitable ground truth."
             )
             return
         iteration = self.iteration.currentData()

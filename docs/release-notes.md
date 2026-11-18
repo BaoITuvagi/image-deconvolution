@@ -3,6 +3,31 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 experiment update reopens a selected run as a saved result
+in Compare & history without executing restoration. Version-2 exports keep exact
+float64 output and captured RL checkpoints alongside inputs, TIFF and CSV files.
+Recorded quality, timing, baseline and available curves are restored; selecting
+the reopened RL record also populates RL inspector when capture exists. No
+capture or unsuitable ground truth does not create intermediate images or metrics.
+Version-1 bundles use the saved float32 TIFF and available recorded curve; missing
+legacy checkpoints and pre-rounding measurements are identified explicitly.
+Reopening validates saved data in a worker before replacing inputs or adding
+history, preserves existing history within its limits and allows explicit reruns.
+Export remains scoped to one selected history run. The local distribution is
+`dist/experiment-reopen/Image Deconvolution`; earlier builds are preserved.
+
+All 56 regression tests and nineteen source/frozen Qt acceptance groups passed,
+including exact saved arrays, all captured phases, legacy reopening, all methods,
+absent ground truth/capture, relocated inputs, invalid bundle rejection and
+explicit reruns within 1e-12. The packaged build passed from an empty working
+directory without development Python on PATH, with Python socket connections
+denied. Reopened Compare/inspector captures were visually inspected. Native
+Windows checks opened and canceled the actual Reopen dialog; modal targeting in
+Computer Use could not reliably select its filename field, so successful native
+file selection is not claimed. Maintained Qt checks supplied dialog paths for
+full round trips. Ruff, dependency and diff checks passed; all six saved DL2
+comparisons remain below 1e-6. No new ImageJ execution or benchmark occurred.
+
 The November 18, 2026 Saved references update removes Show reference details,
 its expanded explanation, the three optional columns and the summary beneath
 the images. The fixed six-column table keeps Image, Method, Max |difference|,

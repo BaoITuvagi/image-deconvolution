@@ -230,23 +230,54 @@ DeconvolutionLab2 or a new restoration algorithm is claimed.
 Select a history run, expand Experiment files, and choose Export selected
 experiment. Choose an existing **parent folder**, then enter a **new folder name**
 in the second dialog. Canceling either dialog creates nothing. Existing
-destinations are refused. The new folder contains:
+destinations are refused. Only the selected history run is exported, using its
+recorded inputs/settings even if the sidebar has since changed. The new folder contains:
 
 - `experiment.json`: schema version, method parameters, scientific conventions,
   source identities/hashes, applicable noise settings and environment versions.
 - `observation.npy`, `psf.npy`, and optional `ground_truth.npy`: exact float64
   numerical input snapshots. These files are required to rerun the JSON.
+- `output.npy`: the exact float64 restoration output used for saved-result
+  reopening, preserving the numerical values behind the recorded measurements.
 - `<method>_output.tif`: numerical float32 output without clipping/rescaling.
+- `rl_<iteration>_<phase>.npy`: the five intermediate images at each checkpoint,
+  only when the selected RL run captured steps. The existing eight-checkpoint /
+  64 MiB limit still applies; export does not generate extra steps.
 - `measurements.csv` and, when available, `rl_curve.csv`: values from that run.
   Measurements include the degraded-input baseline and PSNR change; JSON also
   records the input measurements. CSV curve rows still describe updated RL estimates.
 
-Reopen experiment JSON checks the version, conventions, dimensions, and file/
-numerical hashes and restores the controls. If an input array has moved, locate
-the matching .npy file when prompted. A changed array is rejected. Click Run
-selected method explicitly to rerun. JSON does not embed pixels. In this Windows
-environment, reopen/rerun differences from repeated PSF normalization are tested
-with absolute tolerance 1e-12, independently of plugin comparison tolerance.
+Reopen experiment JSON validates the version, conventions, dimensions, image
+hashes, measurements and inspection limits in a worker before changing the
+workspace. It restores inputs/settings, adds one saved run to history and displays
+its output in the selected Compare & history slot without running restoration.
+Compatible slots and existing history remain subject to the usual history limits;
+slots from another observation/ground truth are cleared. The history Configuration cell
+labels the reopened record as Saved experiment. Time and quality are the recorded
+values, not new measurements or the duration of opening the folder.
+
+For a captured RL run, select RL inspector to view its saved checkpoints and
+PSNR/SSIM curves without rerunning. A run without capture has no intermediate
+images; suitable ground truth is still required for quality curves. IF/TRIF do
+not supply RL inspection data. Existing Update explanations and phase controls
+retain their behavior.
+
+If an input array has moved, locate the matching .npy file when prompted; canceling
+keeps the workspace unchanged. Changed arrays or missing saved-result files are
+rejected. Keep the whole export folder together: JSON does not embed image pixels.
+Save selected output only writes the TIFF; an experiment export already includes it.
+
+Version-1 bundles remain supported using their saved float32 TIFF, recorded
+measurements/time and optional curve CSV. Their measurements describe the original
+run before TIFF rounding, and the history tooltip records that distinction.
+Legacy bundles contain no intermediate RL images; inspector explicitly explains
+that capture and a new run are needed to obtain them. Re-exporting a legacy result
+does not recover lost precision or checkpoints.
+
+Click Run selected method explicitly to make a new run using the reopened inputs
+and settings. In this Windows environment, rerun differences from repeated PSF
+normalization are tested with absolute tolerance 1e-12, independently of plugin
+comparison tolerance. New bundles restore the saved output/checkpoints exactly.
 
 ## Timing, limits, and recovery
 
