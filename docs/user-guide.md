@@ -174,9 +174,12 @@ the correction is circular convolution with the adjoint PSF.
 At most eight complete checkpoints are retained within 64 MiB. If one checkpoint
 would exceed that budget, turn off capture to restore the large image. The curve
 uses up to 32 selected measurements including the final iteration. Choose PSNR or
-SSIM separately. Infinite PSNR is preserved in measurements but omitted from the
-finite plot. These curves are exploratory and do not replace independently
-selected benchmark parameters.
+SSIM separately. The horizontal axis is labeled Iteration; dots mark actual
+finite measurements, joined by straight segments. A single measurement appears
+as one dot. The inspector starts directly with its controls; the report contains
+the mathematical explanation. Infinite PSNR is preserved in measurements but
+omitted from the finite plot. These curves are exploratory and do not replace
+independently selected benchmark parameters.
 
 To explore iterations, load Bars — reference, then edit RL iterations in
 Restoration (for example, 5, 20, 80, or 200) and run again. Its quality can rise and
