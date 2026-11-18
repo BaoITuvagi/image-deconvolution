@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QInputDialog
 
 from image_deconvolution.core.algorithms import otf, rl
 from image_deconvolution.experiments.export import environment_versions
+from image_deconvolution.experiments.inspection import quality
 from image_deconvolution.io.images import prepare_psf, read_image, sample_path
 from image_deconvolution.ui.main_window import MainWindow
 
@@ -43,10 +44,12 @@ def verify_desktop(destination):
 
     def wait():
         deadline = time.monotonic() + 60
-        while window.worker is not None and time.monotonic() < deadline:
+        while (
+            window.worker is not None or window.baseline.pending
+        ) and time.monotonic() < deadline:
             pump(10)
-        if window.worker is not None:
-            raise AssertionError("Processing worker exceeded 60 seconds.")
+        if window.worker is not None or window.baseline.pending:
+            raise AssertionError("Processing or baseline worker exceeded 60 seconds.")
         if errors:
             raise AssertionError("Unexpected UI errors: " + "; ".join(errors))
         pump()
@@ -126,6 +129,7 @@ def verify_desktop(destination):
                 )
                 window.saved_example.setCurrentIndex(index)
                 window.sample_button.click()
+                wait()
                 assert name in window.observation.source
                 assert window.threshold.value() == 0.1
                 assert window.regularization.value() == 0.1
@@ -138,11 +142,25 @@ def verify_desktop(destination):
                 assert window.psf_file.isEnabled() and not window.sigma.isEnabled()
                 assert not window.psf_mode.isVisible()
                 assert "Set intensity L" not in window.input_info.text()
+                values, _ = quality(window.ground_truth, window.observation.pixels, 1)
+                assert f"MSE {values['mse']:.5g}" in window.baseline.text()
+                assert f"PSNR {values['psnr']:.3f} dB" in window.baseline.text()
+                assert window.history == [] and not window.results_visible
+            window.data_range.setValue(2)
+            wait()
+            assert "L=2" in window.baseline.toolTip()
+            checks.append(
+                "All saved examples show baseline before Run; current L updates without history or regeneration"
+            )
             window.saved_example.setCurrentIndex(0)
             window.sample_button.click()
-            pump()
+            wait()
             assert window.observation.pixels.shape == (256, 256)
             assert all(not box.isVisible() for box in window.image_boxes[2:])
+            assert (
+                window.input_view.height()
+                > 0.7 * window.image_layout.geometry().height()
+            )
             assert window.grab().save(str(root / "loaded.png"))
             assert window.control_pages.currentIndex() == 0
             selector = window.saved_example.geometry()
@@ -194,6 +212,14 @@ def verify_desktop(destination):
             assert window.active_slot == 0
             assert window.slot_records[0] is record
             assert window.slot_records[1:] == [None, None]
+            assert (
+                window.baseline.heightForWidth(window.baseline.width())
+                <= window.baseline.fontMetrics().height()
+            )
+            assert (
+                window.image_boxes[2].full_title == "1: RL: iterations=5, epsilon=1e-06"
+            )
+            assert window.image_boxes[2].layout().count() == 1
             assert window.grab().save(str(root / "first-run.png"))
             H = otf(prepare_psf(record.psf.pixels, record.observation.pixels.shape))
             np.testing.assert_allclose(
@@ -258,6 +284,7 @@ def verify_desktop(destination):
                 window.open_source()
             pump()
             assert window.observation is None and window.input_view.array is None
+            assert window.baseline.text() == "Degraded input: N/A"
             assert window.psf_mode.isVisible() and window.data_range.isVisible()
             assert (
                 window.control_pages.widget(0)
@@ -343,6 +370,8 @@ def verify_desktop(destination):
             wait()
             assert window.record.quality is None
             assert window.record.input_quality is None
+            assert window.baseline.text() == "Degraded input: N/A"
+            assert window.baseline.toolTip() == ""
             checks.append("No quality measurement without ground truth")
 
             window.saved_example.setCurrentIndex(1)
@@ -412,6 +441,26 @@ def verify_desktop(destination):
             window.select_slot(2)
             window.fit_views()
             pump(150)
+            heights = [view.viewport().height() for view in window.views[2:]]
+            assert max(heights) - min(heights) <= 1
+            for run, box in zip(window.slot_records, window.image_boxes[2:]):
+                assert box.layout().count() == 1 and not hasattr(box, "parameters")
+                assert (
+                    box.full_title
+                    == f"{window.run_ids[id(run)]}: {run.config.method}: {window.run_parameters(run.config)}"
+                )
+                assert box.full_title in box.toolTip()
+            report["comparison_layout"] = {
+                "window": [window.width(), window.height()],
+                "baseline_height": window.baseline.height(),
+                "viewports": [
+                    [view.viewport().width(), view.viewport().height()]
+                    for view in window.views
+                ],
+            }
+            checks.append(
+                "Single-line baseline and inline result titles reclaim height with three aligned result viewports"
+            )
             assert window.grab().save(str(root / "workspace.png"))
 
             def fail():
@@ -439,6 +488,10 @@ def verify_desktop(destination):
         report["ui_errors"] = errors
         if window.worker is not None:
             window.worker.wait(60000)
+            pump()
+        window.baseline.stop_pending()
+        if window.baseline.worker is not None:
+            window.baseline.worker.wait(60000)
             pump()
         window.close()
         return_code = 1

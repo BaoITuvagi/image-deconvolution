@@ -6,6 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import gc
 import tempfile
+import threading
 import time
 import unittest
 from dataclasses import replace
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from image_deconvolution.core.algorithms import otf, rl
 from image_deconvolution.experiments.export import export_bundle
+from image_deconvolution.experiments.inspection import quality
 from image_deconvolution.experiments.runs import RunConfig, restore
 from image_deconvolution.io.images import (
     ImageData,
@@ -100,7 +102,7 @@ class DesktopTests(unittest.TestCase):
         self.app.processEvents()
 
     def tearDown(self):
-        if self.window.worker:
+        if self.window.worker or self.window.baseline.pending:
             self.wait_for_worker()
         self.window.close()
         self.window.deleteLater()
@@ -111,10 +113,188 @@ class DesktopTests(unittest.TestCase):
 
     def wait_for_worker(self):
         deadline = time.monotonic() + 20
-        while self.window.worker is not None and time.monotonic() < deadline:
+        while (
+            self.window.worker is not None or self.window.baseline.pending
+        ) and time.monotonic() < deadline:
             self.app.processEvents()
             time.sleep(0.002)  # Yield the GIL so the Python worker can make progress.
         self.assertIsNone(self.window.worker, "Worker failed to finish")
+        self.assertFalse(
+            self.window.baseline.pending, "Baseline measurement failed to finish"
+        )
+
+    def test_baseline_on_load_current_range_and_unavailable_inputs(self):
+        w = self.window
+        self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+        for name in ("cells", "bars", "fibers"):
+            w.load_research(name)
+            self.wait_for_worker()
+            expected, _ = quality(w.ground_truth, w.observation.pixels, 1)
+            self.assertIn(f"MSE {expected['mse']:.5g}", w.baseline.text())
+            self.assertIn(f"PSNR {expected['psnr']:.3f} dB", w.baseline.text())
+            self.assertIn(f"SSIM {expected['ssim']:.5f}", w.baseline.text())
+            self.assertEqual(w.history, [])
+            self.assertIsNone(w.record)
+            self.assertFalse(w.results_visible)
+            self.app.processEvents()
+            self.assertGreater(
+                w.input_view.height(), 0.7 * w.image_layout.geometry().height()
+            )
+        observation, truth = w.observation, w.ground_truth
+        w.data_range.setValue(2)
+        self.wait_for_worker()
+        expected, _ = quality(truth, observation.pixels, 2)
+        self.assertIn(f"PSNR {expected['psnr']:.3f} dB", w.baseline.text())
+        self.assertIn("L=2", w.baseline.toolTip())
+        self.assertIs(w.observation, observation)
+        w.clear_truth()
+        self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+        self.assertEqual(w.baseline.toolTip(), "")
+        for ground_truth, data_range in [
+            (ImageData(np.zeros((12, 13)), "mismatched"), 1),
+            (truth, 0.1),
+        ]:
+            w.ground_truth = ground_truth
+            w.data_range.setValue(data_range)
+            w.refresh_views()
+            self.wait_for_worker()
+            self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+            self.assertEqual(w.baseline.toolTip(), "")
+        w.set_observation(ImageData(np.ones((10, 10)), "small"))
+        w.ground_truth = ImageData(np.ones((10, 10)), "small truth")
+        w.data_range.setValue(1)
+        w.refresh_views()
+        self.wait_for_worker()
+        self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+        with patch.object(
+            w, "choose_image", return_value=str(sample_path("cells_gt.tif"))
+        ):
+            w.open_source()
+        self.assertIsNone(w.observation)
+        self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+        w.simulate()
+        self.wait_for_worker()
+        self.assertIn("MSE ", w.baseline.text())
+        self.assertEqual(w.history, [])
+
+    def test_baseline_coalesces_background_requests_and_rejects_stale_values(self):
+        w = self.window
+        gate = threading.Event()
+        calls, threads = [], []
+
+        def measure(truth, pixels, data_range):
+            calls.append(data_range)
+            threads.append(QThread.currentThread())
+            if len(calls) == 1:
+                gate.wait(5)
+            return quality(truth, pixels, data_range)
+
+        with patch(
+            "image_deconvolution.ui.baseline_summary.quality", side_effect=measure
+        ):
+            w.load_sample()
+            self.app.processEvents()
+            self.assertIsNotNone(w.baseline.worker)
+            self.assertFalse(w.close())
+            w.data_range.setValue(2)
+            w.load_bars()
+            w.data_range.setValue(3)
+            self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+            self.assertTrue(w.controls.isEnabled())
+            gate.set()
+            self.wait_for_worker()
+        expected, _ = quality(w.ground_truth, w.observation.pixels, 3)
+        self.assertEqual(calls, [1, 3])
+        self.assertTrue(all(thread is not self.app.thread() for thread in threads))
+        self.assertIn(f"PSNR {expected['psnr']:.3f} dB", w.baseline.text())
+        self.assertEqual(w.history, [])
+        # A pending current-input measurement cannot overwrite a historical baseline.
+        w.run_restoration()
+        self.wait_for_worker()
+        historical = w.record
+        gate.clear()
+        calls.clear()
+        with patch(
+            "image_deconvolution.ui.baseline_summary.quality", side_effect=measure
+        ):
+            w.load_sample()
+            self.app.processEvents()
+            w.select_history(0)
+            selected = w.baseline.text()
+            gate.set()
+            self.wait_for_worker()
+            self.assertEqual(w.baseline.text(), selected)
+            self.assertIn("L=3", w.baseline.toolTip())
+            self.assertIs(w.record, historical)
+
+    def test_baseline_failure_recovers_without_extra_status_prose(self):
+        w = self.window
+        with patch(
+            "image_deconvolution.ui.baseline_summary.quality",
+            side_effect=ValueError("Unavailable measurement"),
+        ):
+            w.load_sample()
+            self.wait_for_worker()
+        self.assertEqual(w.baseline.text(), "Degraded input: N/A")
+        self.assertEqual(w.baseline.toolTip(), "")
+        self.assertTrue(w.run_button.isEnabled())
+        self.assertFalse(self.warning.called)
+        w.data_range.setValue(2)
+        self.wait_for_worker()
+        self.assertIn("MSE ", w.baseline.text())
+
+    def test_inline_result_titles_and_compact_equal_image_viewports(self):
+        w = self.window
+        w.load_sample()
+        self.wait_for_worker()
+        w.compare_methods()
+        self.wait_for_worker()
+        for points in (9, 12, 16):
+            font = w.font()
+            font.setPointSize(points)
+            w.setFont(font)
+            for width in (1100, 1700):
+                w.resize(width, 1000)
+                self.app.processEvents()
+                for i, box in enumerate(w.image_boxes[2:]):
+                    run = w.slot_records[i]
+                    self.assertEqual(
+                        box.full_title,
+                        f"{w.run_ids[id(run)]}: {run.config.method}: {w.run_parameters(run.config)}",
+                    )
+                    self.assertIn(box.full_title, box.toolTip())
+                    self.assertLessEqual(
+                        box.fontMetrics().horizontalAdvance(box.title()),
+                        box.width() - 20,
+                    )
+                    self.assertEqual(box.layout().count(), 1)
+                    self.assertFalse(hasattr(box, "parameters"))
+                heights = [view.viewport().height() for view in w.views[2:]]
+                self.assertLessEqual(max(heights) - min(heights), 1)
+                self.assertEqual(
+                    w.baseline.parentWidget(), w.current_button.parentWidget()
+                )
+                self.assertTrue(w.table.isVisible())
+        w.setFont(self.app.font())
+        w.resize(1700, 1000)
+        for _ in range(5):
+            self.app.processEvents()
+        text_width = w.baseline.fontMetrics().horizontalAdvance(w.baseline.text())
+        w.resize(max(w.width(), w.width() - w.baseline.width() + text_width + 32), 1000)
+        for _ in range(5):
+            self.app.processEvents()
+        self.assertGreaterEqual(w.baseline.width(), text_width)
+        self.assertLessEqual(
+            w.baseline.heightForWidth(w.baseline.width()),
+            2 * w.baseline.fontMetrics().height(),
+        )
+        self.assertLessEqual(
+            w.baseline.height(),
+            max(w.current_button.height(), 2 * w.baseline.fontMetrics().height()),
+        )
+        self.assertGreater(min(view.viewport().height() for view in w.views[2:]), 250)
+        w.fit_views()
+        self.assertTrue(all(view._auto_fit for view in w.views))
 
     def test_single_runs_replace_selected_slot_without_auto_filling(self):
         w = self.window
@@ -188,24 +368,25 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(w.data_range.value(), 2)
         np.testing.assert_array_equal(w.input_view.array, cells[0].observation.pixels)
         np.testing.assert_array_equal(w.truth_view.array, cells[0].ground_truth.pixels)
-        for key, label in w.baseline_values.items():
-            self.assertEqual(label.text(), f"{cells[0].input_quality[key]:.5g}")
+        self.assertIn(
+            f"PSNR {cells[0].input_quality['psnr']:.3f} dB", w.baseline.text()
+        )
         self.assertIn("L=1", w.table.item(0, 2).text())
         self.assertIn("L=2", w.table.item(3, 2).text())
         w.select_slot(2)
         self.assertIsNone(w.record)
         self.assertTrue(w.current_button.isEnabled())
         self.assertEqual(
-            w.baseline_values["psnr"].text(), f"{cells[0].input_quality['psnr']:.5g}"
+            w.baseline.text(),
+            f"Degraded input: MSE {cells[0].input_quality['mse']:.5g}; PSNR {cells[0].input_quality['psnr']:.3f} dB; SSIM {cells[0].input_quality['ssim']:.5f}",
         )
         w.select_history(3)
         self.assertIs(w.record, bars)
         self.assertIsNone(w.slot_records[1])
         w.current_button.click()
+        self.wait_for_worker()
         self.assertFalse(w.results_visible)
-        self.assertTrue(
-            all(label.text() == "N/A" for label in w.baseline_values.values())
-        )
+        self.assertIn(f"PSNR {bars.input_quality['psnr']:.3f} dB", w.baseline.text())
         self.assertEqual(len(w.history), 4)
         np.testing.assert_array_equal(w.input_view.array, current_observation.pixels)
 
@@ -1255,10 +1436,10 @@ class DesktopTests(unittest.TestCase):
         self.assertIsNotNone(self.window.other_view.array)
         self.assertIsNotNone(self.window.third_view.array)
         self.assertEqual(
-            self.window.baseline_values["psnr"].text(),
-            f"{record.input_quality['psnr']:.5g}",
+            self.window.baseline.text(),
+            f"Degraded input: MSE {record.input_quality['mse']:.5g}; PSNR {record.input_quality['psnr']:.3f} dB; SSIM {record.input_quality['ssim']:.5f}",
         )
-        self.assertFalse(self.window.quality_info.isVisible())
+        self.assertFalse(hasattr(self.window, "quality_info"))
         self.assertAlmostEqual(record.input_quality["psnr"], 31.300618881, places=7)
         self.assertLess(record.psnr_change, 0)
         with patch(

@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/result-slots/Image Deconvolution/`;
+The updated local distribution is `dist/compact-images/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -24,7 +24,9 @@ and [third-party notices](docs/third-party-notices.md).
    saved float TIFF input, ground truth, and the matching PSF. The Load button sits
    beside the selector; the sidebar stays on Inputs & simulation. Loading does
    not regenerate noise or run restoration. Cells, Bars, and Fibers reference
-   presets use IF 0.1, TRIF 0.1, RL 5, epsilon 1e-6, and L=1.
+   presets use IF 0.1, TRIF 0.1, RL 5, epsilon 1e-6, and L=1. Degraded-input
+   MSE/PSNR/SSIM appears on load in one compact line, without requiring a run;
+   unavailable measurements show N/A only.
 2. Restoration > Compare IF, TRIF, and RL runs all methods on identical input in
    a worker and displays all three outputs. Degraded-input and restored metrics
    share one ground truth/intensity scale; PSNR change makes improvements and
@@ -34,7 +36,10 @@ and [third-party notices](docs/third-party-notices.md).
    and fills the left slot; later runs replace the selected slot. Compare fills
    IF, TRIF, RL from left to right. The selection border identifies the run used
    by the inspector and save/export actions. View current inputs returns to the
-   next run's workspace. Scroll to zoom and drag to pan the synchronized views.
+   next run's workspace and current-input baseline. Run ID, method and parameters
+   share one title line; full titles remain in tooltips when shortened. Compact
+   spacing gives the aligned images more room. Scroll to zoom and drag to pan
+   the synchronized views.
 4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
    iterations when compatible ground truth exists. Load Bars reference and change
    RL iterations in Restoration to explore how late iterations can reduce quality.

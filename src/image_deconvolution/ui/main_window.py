@@ -49,6 +49,7 @@ from image_deconvolution.experiments.reference import (
 )
 from image_deconvolution.experiments.runs import RunConfig, degrade, restore
 from image_deconvolution.io.images import ImageData, read_image, save_tiff
+from image_deconvolution.ui.baseline_summary import BaselineSummary
 from image_deconvolution.ui.file_field import FileField
 from image_deconvolution.ui.history_table import HistoryTable
 from image_deconvolution.ui.image_view import ImageView
@@ -158,6 +159,12 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         comparison = QWidget()
         images = QGridLayout(comparison)
+        images.setContentsMargins(6, 4, 6, 4)
+        images.setSpacing(6)
+        for column in range(6):
+            images.setColumnStretch(column, 1)
+        images.setRowStretch(0, 1)
+        images.setRowStretch(1, 0)
         self.image_layout = images
         self.input_view = ImageView()
         self.observation_prompt = QLabel(
@@ -191,7 +198,9 @@ class MainWindow(QMainWindow):
         ):
             if i < 2:
                 box = QGroupBox(title)
-                QVBoxLayout(box).addWidget(self.input_display if i == 0 else view)
+                layout = QVBoxLayout(box)
+                layout.setContentsMargins(6, 6, 6, 6)
+                layout.addWidget(self.input_display if i == 0 else view)
             else:
                 slot = i - 2
                 box = ResultSlot(slot + 1, view)
@@ -217,32 +226,16 @@ class MainWindow(QMainWindow):
         workspace = QWidget()
         workspace_layout = QVBoxLayout(workspace)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_layout.setSpacing(4)
         context = QHBoxLayout()
         self.current_button = self.button(
             "View current inputs", self.show_current_inputs
         )
         self.current_button.setEnabled(False)
-        context.addStretch(1)
+        self.baseline = BaselineSummary()
+        context.addWidget(self.baseline, 1)
         context.addWidget(self.current_button)
         workspace_layout.addLayout(context)
-        baseline = QWidget()
-        baseline_layout = QGridLayout(baseline)
-        baseline_layout.setContentsMargins(0, 0, 0, 0)
-        baseline_layout.addWidget(QLabel("Degraded input"), 0, 0, 2, 1)
-        self.baseline_values = {}
-        for column, (key, title) in enumerate(
-            [("mse", "MSE"), ("psnr", "PSNR (dB)"), ("ssim", "SSIM")], 1
-        ):
-            baseline_layout.addWidget(QLabel(title), 0, column)
-            value = QLabel("N/A")
-            value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            baseline_layout.addWidget(value, 1, column)
-            baseline_layout.setColumnStretch(column, 1)
-            self.baseline_values[key] = value
-        self.quality_info = WrappedLabel("No input measurements available.")
-        self.quality_info.setWordWrap(True)
-        workspace_layout.addWidget(baseline)
-        workspace_layout.addWidget(self.quality_info)
         workspace_layout.addWidget(compare_page)
         self.tabs.addTab(workspace, "Compare && history")
         self.inspector = InspectionPanel()
@@ -980,8 +973,9 @@ class MainWindow(QMainWindow):
                     self.table.columnCount() - 1,
                     QTableWidgetItem("Earlier configuration"),
                 )
-        if self.record is not None:
+        if hasattr(self, "baseline"):
             self.update_baseline()
+        if self.record is not None:
             self.refresh_views()
         if hasattr(self, "clear_history_button"):
             self.update_controls()
@@ -1220,25 +1214,19 @@ class MainWindow(QMainWindow):
 
     def update_baseline(self):
         record = self.view_record
-        values = None if record is None else record.input_quality
-        for key, label in self.baseline_values.items():
-            label.setText("N/A" if values is None else f"{values[key]:.5g}")
-        self.quality_info.setVisible(values is None)
-        if values is None:
-            self.quality_info.setText(
-                record.metric_note
-                if record is not None
-                else "No input measurements available."
+        if record is not None:
+            self.baseline.show_historical(
+                record.input_quality,
+                f"Input quality for run {self.run_ids[id(record)]}; intensity L={record.config.data_range:g}.",
             )
-        tooltip = (
-            f"Input quality for run {self.run_ids[id(record)]}; intensity L={record.config.data_range:g}."
-            if record is not None
-            else "No historical input measurement selected."
-        )
-        for label in self.baseline_values.values():
-            label.setToolTip(tooltip)
+        else:
+            self.baseline.measure_current(
+                self.observation, self.ground_truth, self.data_range.value()
+            )
 
     def refresh_views(self):
+        self.update_baseline()
+        self.image_layout.setRowStretch(1, 1 if self.results_visible else 0)
         if self.high.value() <= self.low.value():
             self.error("Display maximum must exceed display minimum.")
             return
@@ -1276,15 +1264,15 @@ class MainWindow(QMainWindow):
             view.set_image(
                 None if run is None else run.output, self.low.value(), self.high.value()
             )
-            box.setTitle(
+            box.set_result_title(
                 f"Result {index + 1}"
                 if run is None
-                else f"{self.run_ids[id(run)]}: {run.config.method}"
+                else f"{self.run_ids[id(run)]}: {run.config.method}: {self.run_parameters(run.config)}"
             )
             box.setToolTip(
                 "Select this slot, then run a method or choose a history row."
                 if run is None
-                else self.run_parameters(run.config)
+                else box.full_title
                 + f"; intensity L={run.config.data_range:g}. "
                 + (
                     "Earlier configuration. "
@@ -1293,10 +1281,6 @@ class MainWindow(QMainWindow):
                 )
                 + "Select this slot to inspect, save or export this run."
             )
-            box.parameters.setText(
-                "" if run is None else self.run_parameters(run.config)
-            )
-            box.parameters.setVisible(run is not None)
 
     def fit_views(self):
         for view in self.views + [
@@ -1324,10 +1308,11 @@ class MainWindow(QMainWindow):
                 self.error(exc)
 
     def closeEvent(self, event):
-        if self.worker is not None:
+        if self.worker is not None or self.baseline.worker is not None:
             self.statusBar().showMessage(
                 "Wait for processing to finish before closing."
             )
             event.ignore()
         else:
+            self.baseline.stop_pending()
             event.accept()

@@ -41,6 +41,12 @@ current display settings remain in Display & history.
    regenerate noise or run restoration. The three choices are Cells, Bars, and
    Fibers reference. Each loads IF threshold 0.1, TRIF lambda 0.1, RL 5 iterations,
    epsilon 1e-6, and L=1 for the saved sigma-2, photon-200, seed-0 case.
+   Degraded input starts measuring MSE, PSNR and SSIM immediately, before any
+   restoration or history entry. It displays one line beside View current inputs.
+   Measurements run in the background without disabling the sidebar. Rapid input
+   or L changes replace the pending request; old results cannot overwrite the
+   current or historical baseline. While a measurement is pending or unavailable,
+   the summary shows Degraded input: N/A without an accompanying reason.
 2. Expand Restoration. The Method selector shows RL (Richardson-Lucy),
    IF (Thresholded inverse filtering), and TRIF (Zeroth-order Tikhonov) without
    a separate method-description row. Choose a method and edit its parameters.
@@ -64,8 +70,13 @@ current display settings remain in Display & history.
    adds three history rows, and keeps the currently selected slot active.
 5. To inspect a saved run, click the destination slot, then select a history row
    with the mouse or arrow keys. Only that slot changes; the other compatible
-   slots remain. The slot title shows the session run identifier and method,
-   with parameters below it. Clicking a populated slot selects its history row
+   slots remain. The slot title shows the session run identifier, method and
+   parameters on one line, with no separate text row inside the image slot.
+   Narrow titles are shortened with an ellipsis; hover for the complete title,
+   parameters and recorded L. Compact baseline spacing and aligned result
+   viewports leave more height for the images. On narrow windows or larger text,
+   the baseline wraps as needed to remain readable.
+   Clicking a populated slot selects its history row
    and makes it the run used by RL inspector, Save selected output TIFF and
    Export selected experiment. Empty slots have no selected run and disable
    those actions. Press Enter or Space on a focused slot to select it.
@@ -80,14 +91,17 @@ current display settings remain in Display & history.
    fill the available width. Narrow windows use horizontal scrolling to preserve
    readable headings. Long cells wrap where possible and retain complete tooltips.
    The Parameters column includes the recorded intensity L for each run.
-   Degraded input presents aligned MSE, PSNR (dB), and SSIM for the displayed
-   historical input; its tooltip identifies the run and recorded L. Output quality
-   appears in history. Both measurements use that run's ground truth and L.
+   Degraded input presents MSE, PSNR (dB), and SSIM in one compact line. Current
+   inputs use the current observation, ground truth and declared L; changing L
+   refreshes this baseline without regenerating the observation. Historical
+   inputs use that run's saved measurements; the tooltip identifies the run and
+   recorded L. Output quality appears in history. Both historical measurements
+   use that run's ground truth and L.
    PSNR change is output minus input; a negative value means lower PSNR.
    These exploratory results do not select benchmark parameters. Undefined
-   infinity differences show N/A. Returning to current inputs clears historical
-   baseline values until another run is inspected or completed. Missing or
-   incompatible ground truth produces N/A with an explanation.
+   infinity differences show N/A. Returning to current inputs restores or
+   recalculates their baseline without requiring another run. Missing or
+   incompatible inputs produce N/A only in the degraded-input summary.
 6. Click Save selected output TIFF to save float32 pixels, including negative
    values or values above 1. This rounds float64 to float32; it never saves the
    display screenshot. An existing file requires the native save dialog's
@@ -119,7 +133,7 @@ with normalization. Display & history can change the shared display range.
 Open optional ground truth uses the same loading policy. In Restoration,
 set Intensity range L to the ground truth's declared intensity scale (for example,
 1 for normalized research pixels or 255 for preserved 8-bit pixels). Metrics are
-N/A with an explanation if truth is missing, dimensions differ, either dimension
+N/A if truth is missing, dimensions differ, either dimension
 does not exceed 10, or truth lies outside [0, L]. Clear ground truth removes it
 for subsequent runs; historical measurements retain their original truth.
 
@@ -225,7 +239,9 @@ Time values cover OTF construction and numerical restoration only. They exclude
 file I/O, validation, metric computation, checkpoint copies, and rendering; they
 are not full UI duration or a cross-library speed claim. All processing uses the
 local CPU. Long runs have no cancellation in this version. Closing is blocked
-while a worker runs; wait for completion. If a worker fails, the app reports its
+while a restoration or input-measurement worker runs; wait for completion.
+Input-measurement failures leave the baseline at N/A; a later input/L change
+can trigger another measurement. If a restoration worker fails, the app reports its
 English error and re-enables controls without relabeling an older result.
 
 The implementation currently targets 2D grayscale known-PSF restoration with

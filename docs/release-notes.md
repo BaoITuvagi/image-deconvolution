@@ -3,6 +3,40 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 compact-image update measures degraded-input quality
+immediately after loading a saved example or compatible custom inputs. The
+baseline uses the current declared L before a run; history continues to use
+recorded input snapshots and L. Measurements run in a separate coalesced worker
+and stale results are ignored after input, L or historical-context changes.
+Unavailable measurements show only Degraded input: N/A, without a reason or
+additional status sentence. The summary and View current inputs share a compact
+row; the summary wraps only when necessary for narrow windows or large text.
+
+Run ID, method and parameters now share each result slot's title line, with full
+values in tooltips when the visible title is shortened. Removing the inner
+parameter row and reclaiming the former multi-row baseline space gives the
+images more room. Three result viewports have aligned usable heights; aspect
+ratio, shared zoom/pan, selected borders, IF/TRIF/RL positions and history/
+save/export behavior are retained. The new local distribution is
+`dist/compact-images/Image Deconvolution`; earlier builds are preserved.
+
+All 49 regression tests passed. Source and frozen Windows builds each passed
+fifteen acceptance groups. Coverage includes baseline-on-load for all presets,
+current/recorded L, invalid or missing inputs, coalesced background measurements,
+stale-result rejection, failure recovery, inline titles and aligned viewports at
+9/12/16-point fonts. Before a result is shown, the two input views occupy the
+full image area; the hidden result row reserves no blank space. The EXE passed
+from an empty working directory with development Python removed from PATH and
+Python socket connections denied. Six saved DL2 comparisons passed with maximum
+absolute difference 8.104919255735865e-7. Ruff lint/format, dependency and diff
+checks passed. No new ImageJ execution or performance benchmark occurred.
+
+I compared captured Windows Qt layouts with the previous maintained screenshot
+and inspected the loaded, first-run and three-method states. The native Computer
+Use helper remained unavailable (native pipe not found), so this update does not
+claim OS-level mouse or new native file-dialog checks. Maintained workflow
+checks use actual Qt events and supplied dialog paths.
+
 The November 18, 2026 result-slot update reveals three fixed restoration slots
 only after a run or historical result is displayed. The first single-method run
 fills and selects the left slot; repeated runs replace the selected slot and
