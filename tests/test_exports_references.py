@@ -31,6 +31,11 @@ class ExportReferenceTests(unittest.TestCase):
         results = compare_references()
         self.assertEqual(len(results), 6)
         for result in results:
+            config = result["record"].config
+            self.assertEqual(config.iterations, 5)
+            self.assertEqual(config.regularization, 0.1)
+            self.assertEqual(config.epsilon, 1e-6)
+            self.assertEqual(config.data_range, 1)
             self.assertLess(
                 result["max_abs"], 1e-6, (result["image"], result["method"])
             )

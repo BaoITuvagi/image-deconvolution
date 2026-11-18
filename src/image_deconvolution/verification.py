@@ -121,19 +121,21 @@ def verify_desktop(destination):
 
             window.control_pages.setCurrentIndex(0)
             assert window.psf_file.text() == "" and not window.psf_file.isEnabled()
-            assert window.saved_example.count() == 3
-            for index, name in enumerate(("cells", "bars", "fibers")):
-                assert (
-                    window.saved_example.itemText(index)
-                    == f"{name.title()} — reference"
+            assert window.saved_example.count() == 6
+            for index, name in enumerate(("cells", "bars", "fibers") * 2):
+                report_preset = index >= 3
+                assert window.saved_example.itemText(index) == (
+                    f"{name.title()} — Report — P=200"
+                    if report_preset
+                    else f"{name.title()} — reference"
                 )
                 window.saved_example.setCurrentIndex(index)
                 window.sample_button.click()
                 wait()
                 assert name in window.observation.source
-                assert window.threshold.value() == 0.1
+                assert window.threshold.value() == (0.3 if report_preset else 0.1)
                 assert window.regularization.value() == 0.1
-                assert window.iterations.value() == 5
+                assert window.iterations.value() == (2 if report_preset else 5)
                 assert window.epsilon.value() == 1e-6
                 assert window.data_range.value() == 1
                 assert window.record is None and window.worker is None
@@ -152,6 +154,11 @@ def verify_desktop(destination):
             checks.append(
                 "All saved examples show baseline before Run; current L updates without history or regeneration"
             )
+            window.saved_example.setCurrentIndex(3)
+            window.sample_button.click()
+            wait()
+            assert window.grab().save(str(root / "report-preset.png"))
+            checks.append("Six reference/report presets load without restoration")
             window.saved_example.setCurrentIndex(0)
             window.sample_button.click()
             wait()
@@ -612,6 +619,71 @@ def verify_desktop(destination):
                 "Single-line baseline and inline result titles reclaim height with three aligned result viewports"
             )
             assert window.grab().save(str(root / "workspace.png"))
+
+            window.saved_example.setCurrentIndex(3)
+            window.sample_button.click()
+            wait()
+            window.compare_button.click()
+            wait()
+            report_runs = window.history[-3:].copy()
+            for run, method, psnr in zip(
+                report_runs,
+                ["IF", "TRIF", "RL"],
+                [38.46252628, 32.70165832, 31.16803614],
+                strict=True,
+            ):
+                assert run.config.method == method
+                assert run.config.threshold == 0.3 and run.config.iterations == 2
+                assert abs(run.quality["psnr"] - psnr) < 1e-7
+            window.select_slot(2)
+            pump()
+            assert window.grab().save(str(root / "report-comparison.png"))
+            for saved in report_runs:
+                row = next(i for i, run in enumerate(window.history) if run is saved)
+                window.select_history(row)
+                window.threshold.setValue(0.04)
+                window.iterations.setValue(90)
+                target = root / f"report-{saved.config.method}"
+                with (
+                    patch.object(
+                        QFileDialog, "getExistingDirectory", return_value=str(root)
+                    ),
+                    patch.object(
+                        QInputDialog, "getText", return_value=(target.name, True)
+                    ),
+                ):
+                    window.export_button.click()
+                wait()
+                with patch.object(
+                    QFileDialog,
+                    "getOpenFileName",
+                    return_value=(str(target / "experiment.json"), ""),
+                ):
+                    window.open_experiment()
+                wait()
+                assert window.current_config() == saved.config
+                np.testing.assert_array_equal(window.record.output, saved.output)
+                assert window.record.quality == saved.quality
+                assert window.record.curve == saved.curve
+                assert bool(window.record.steps) == (saved.config.method == "RL")
+                assert window.active_slot == 2 and window.tabs.currentIndex() == 0
+            window.tabs.setCurrentIndex(1)
+            assert window.inspector.iteration.count() == 2
+            for iteration, phases in saved.steps.items():
+                window.inspector.iteration.setCurrentIndex(
+                    window.inspector.iteration.findData(iteration)
+                )
+                for phase, array in phases.items():
+                    window.inspector.phase.setCurrentText(phase)
+                    np.testing.assert_array_equal(window.inspector.view.array, array)
+            pump()
+            assert window.grab().save(str(root / "report-reopened-inspector.png"))
+            for row in window.reference_panel.rows:
+                assert row["record"].config.iterations == 5
+                assert row["record"].config.regularization == 0.1
+            checks.append(
+                "Report three-method results, edited-control export/reopen and captured RL inspection preserve fixed reference settings"
+            )
 
             def fail():
                 time.sleep(0.1)

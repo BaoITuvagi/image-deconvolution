@@ -46,12 +46,15 @@ def trace_rl(
     measurements = set(np.linspace(1, iterations, min(32, iterations), dtype=int))
     x = y.copy()
     snapshots, curve = {}, []
-    seconds = 0.0
+    # Keep adjoint setup inside algorithm time, excluding metrics and captures.
+    start = perf_counter()
+    H_adj = np.conj(H)
+    seconds = perf_counter() - start
     for iteration in range(1, iterations + 1):
         start = perf_counter()
         prediction = blur(x, H)
         ratio = y / np.maximum(prediction, epsilon)
-        correction = blur(ratio, np.conj(H))
+        correction = blur(ratio, H_adj)
         updated = x * correction
         seconds += perf_counter() - start
         if iteration in checkpoints:

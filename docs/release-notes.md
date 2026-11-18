@@ -3,6 +3,32 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 integration of PR #28 adds three Report — P=200 presets
+alongside the three unchanged reference presets. Report settings use IF 0.3,
+TRIF 0.1, RL 2, epsilon 1e-6 and L=1 on the same saved input/PSF/ground-truth
+TIFFs. Loading does not generate noise or execute restoration. The fixed six
+saved-reference comparisons keep RL 5 and TRIF 0.1. RL and its inspector now
+precompute the conjugate OTF for each cached run; equations, capture limits,
+measurement conventions and the legacy uncached transforms are preserved.
+This does not establish a desktop speedup matching the research benchmark.
+The integration preserves current source generation, result slots/history,
+baseline measurements, inspector presentation and experiment export/reopen.
+The updated build is `dist/report-demo-alignment/Image Deconvolution`; the
+designated original package at `dist/Image Deconvolution` is kept unchanged.
+
+All 59 regression tests and twenty-one source/frozen Qt acceptance groups passed.
+The checks cover the previous RL loop with odd/even asymmetric PSFs, cached and
+uncached checkpoints, report/reference presets, all three report-method bundle
+round trips after sidebar edits, captured inspection and the later desktop
+workflows. Source/frozen Report comparison and reopened-inspector captures were
+visually inspected. Native Windows interaction also verified the six-item
+dropdown, Cells Report loading, IF/TRIF/RL comparison and RL inspector. The EXE
+passed from an empty working directory without development Python on PATH,
+with Python socket connections denied. All 386 files of the designated original
+package were checked by length and SHA256 and remain unchanged. Ruff lint/format,
+dependency and diff checks passed. Six saved DL2 comparisons remain below 1e-6
+(maximum 8.104919255735865e-7); no new ImageJ execution or benchmark occurred.
+
 The November 18, 2026 experiment update reopens a selected run as a saved result
 in Compare & history without executing restoration. Version-2 exports keep exact
 float64 output and captured RL checkpoints alongside inputs, TIFF and CSV files.

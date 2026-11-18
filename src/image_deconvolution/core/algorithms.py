@@ -47,18 +47,20 @@ def tikhonov(y, H, lam=0.001):
 def rl(y, H, iterations=20, epsilon=1e-6, checkpoints=None, cache=True):
     """Run RL initialized from y, optionally returning copies at checkpoints.
 
-    cache=False retains the research's deliberately redundant OTF-transform
-    baseline. It does not represent an optimized alternative implementation.
+    cache=False retains the legacy redundant inverse/forward transform of H.
+    It is not the report benchmark that rebuilds the OTF from the spatial PSF.
     """
     x = y.copy()
     hist = {}
     checkpoints = set(checkpoints or [])
+    H_adj = np.conj(H) if cache else None
     for k in range(1, iterations + 1):
         if not cache:
             H = rfft2(irfft2(H, s=y.shape))
+            H_adj = np.conj(H)
         prediction = blur(x, H)
         ratio = y / np.maximum(prediction, epsilon)
-        x *= blur(ratio, np.conj(H))
+        x *= blur(ratio, H_adj)
         if k in checkpoints:
             hist[k] = x.copy()
     return (x, hist) if checkpoints else x

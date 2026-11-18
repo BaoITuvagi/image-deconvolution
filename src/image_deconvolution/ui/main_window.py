@@ -101,9 +101,12 @@ class MainWindow(QMainWindow):
         self.form.addRow(self.load_button)
         self.saved_example = QComboBox()
         for title, preset in [
-            ("Cells — reference", ("cells", 5)),
-            ("Bars — reference", ("bars", 5)),
-            ("Fibers — reference", ("fibers", 5)),
+            ("Cells — reference", ("cells", 5, 0.1)),
+            ("Bars — reference", ("bars", 5, 0.1)),
+            ("Fibers — reference", ("fibers", 5, 0.1)),
+            ("Cells — Report — P=200", ("cells", 2, 0.3)),
+            ("Bars — Report — P=200", ("bars", 2, 0.3)),
+            ("Fibers — Report — P=200", ("fibers", 2, 0.3)),
         ]:
             self.saved_example.addItem(title, preset)
         self.sample_button = QToolButton()
@@ -563,10 +566,10 @@ class MainWindow(QMainWindow):
         self.capture.toggled.connect(self.mark_changed)
 
     def load_selected_example(self):
-        name, iterations = self.saved_example.currentData()
-        self.load_research(name, iterations)
+        name, iterations, threshold = self.saved_example.currentData()
+        self.load_research(name, iterations, threshold)
 
-    def load_research(self, name, iterations=5):
+    def load_research(self, name, iterations=5, threshold=0.1):
         if self.worker is not None:
             return
         try:
@@ -579,7 +582,7 @@ class MainWindow(QMainWindow):
             self.iterations.setValue(iterations)
             self.epsilon.setValue(1e-6)
             self.regularization.setValue(0.1)
-            self.threshold.setValue(0.1)
+            self.threshold.setValue(threshold)
             self.capture.setChecked(True)
             self.data_range.setValue(1)
             self.low.setValue(0)
