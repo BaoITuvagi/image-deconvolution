@@ -1,9 +1,7 @@
 """A fixed comparison position with mouse and keyboard selection."""
 
-from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import QGroupBox, QVBoxLayout
-
-from image_deconvolution.ui.wrapped_label import WrappedLabel
 
 
 class ResultSlot(QGroupBox):
@@ -15,6 +13,7 @@ class ResultSlot(QGroupBox):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAccessibleName(f"Result slot {number}")
         self.setToolTip("Select this slot, then run a method or choose a history row.")
+        self.full_title = self.title()
         self.setStyleSheet(
             "QGroupBox#resultSlot { border: 2px solid palette(mid); "
             "border-radius: 4px; margin-top: 0.8em; }"
@@ -22,11 +21,37 @@ class ResultSlot(QGroupBox):
             "QGroupBox#resultSlot::title { subcontrol-origin: margin; left: 6px; }"
         )
         layout = QVBoxLayout(self)
-        self.parameters = WrappedLabel()
-        self.parameters.setTextFormat(Qt.TextFormat.PlainText)
-        layout.addWidget(self.parameters)
+        layout.setContentsMargins(6, 6, 6, 6)
         layout.addWidget(view)
         view.viewport().installEventFilter(self)
+
+    def set_result_title(self, text):
+        self.full_title = text
+        self.setAccessibleDescription(text)
+        self.fit_title()
+
+    def fit_title(self):
+        super().setTitle(
+            self.fontMetrics().elidedText(
+                self.full_title, Qt.TextElideMode.ElideRight, max(0, self.width() - 20)
+            )
+        )
+
+    def minimumSizeHint(self):
+        hint = super().minimumSizeHint()
+        return QSize(0, hint.height())
+
+    def resizeEvent(self, event):
+        self.fit_title()
+        super().resizeEvent(event)
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (
+            QEvent.Type.FontChange,
+            QEvent.Type.StyleChange,
+        ) and hasattr(self, "full_title"):
+            self.fit_title()
 
     def set_active(self, active):
         if self.property("active") == active:
