@@ -436,6 +436,10 @@ def verify_desktop(destination):
             )
 
             window.tabs.setCurrentIndex(2)
+            reference_table = window.reference_panel.table
+            assert reference_table.columnCount() == 6
+            for removed in ("details", "note", "detail"):
+                assert not hasattr(window.reference_panel, removed)
             window.reference_panel.verify.click()
             wait()
             rows = window.reference_panel.rows
@@ -444,6 +448,51 @@ def verify_desktop(destination):
             pump(150)
             assert window.grab().save(str(root / "references.png"))
             checks.append("Six saved reference comparisons and signed difference views")
+
+            reference_font, reference_size = window.font(), window.size()
+            for points in (9, 12, 16):
+                font = window.font()
+                font.setPointSize(points)
+                window.setFont(font)
+                for width in (1100, 1800):
+                    window.resize(width, 1000)
+                    reference_table.setRowCount(0)
+                    pump()
+                    columns = [reference_table.columnWidth(i) for i in range(6)]
+                    header = reference_table.horizontalHeader()
+                    assert not header.font().bold() and not header.highlightSections()
+                    assert header.font().pointSize() == points
+                    assert header.length() >= reference_table.viewport().width()
+                    for column, text in enumerate(reference_table.HEADINGS):
+                        assert (
+                            columns[column]
+                            >= header.fontMetrics().horizontalAdvance(text) + 24
+                        )
+                    window.reference_panel.accept_rows(rows)
+                    pump()
+                    assert columns == [reference_table.columnWidth(i) for i in range(6)]
+                    for index, result in enumerate(rows):
+                        reference_table.selectRow(index)
+                        np.testing.assert_array_equal(
+                            window.reference_panel.python_view.array,
+                            result["record"].output,
+                        )
+                        np.testing.assert_array_equal(
+                            window.reference_panel.saved_view.array,
+                            result["reference"].pixels,
+                        )
+                        np.testing.assert_array_equal(
+                            window.reference_panel.diff_view.array, result["difference"]
+                        )
+                    assert not header.font().bold()
+            window.setFont(reference_font)
+            window.resize(reference_size)
+            window.reference_panel.verify.click()
+            wait()
+            assert reference_table.rowCount() == 6
+            checks.append(
+                "Six reference columns keep readable normal-weight headers before/after comparison at 9/12/16-point fonts, resizing and repeat comparison"
+            )
 
             window.tabs.setCurrentIndex(0)
             window.control_pages.setCurrentIndex(1)

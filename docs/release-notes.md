@@ -3,6 +3,26 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 Saved references update removes Show reference details,
+its expanded explanation, the three optional columns and the summary beneath
+the images. The fixed six-column table keeps Image, Method, Max |difference|,
+Python PSNR (dB), Python SSIM and ImageJ PSNR (saved). Empty and populated states
+use one sizing policy: readable normal-weight headings, all available width and
+horizontal scrolling when narrow. The three image titles, synchronized views,
+display ranges and numerical reference calculations are preserved. Technical
+configuration and provenance remain in the user guide. The local distribution
+is `dist/saved-references/Image Deconvolution`; earlier builds are preserved.
+
+All 50 regression tests and sixteen acceptance groups in both source and frozen
+builds passed. Reference checks cover empty/populated layouts, 9/12/16-point
+text, resizing, repeated comparison and row selection. Native Windows Qt
+captures of empty/populated states and the packaged reference tab were visually
+inspected. The EXE passed from an empty working directory without development
+Python on PATH, with Python socket connections denied. All six saved DL2
+comparisons stayed below 1e-6 (maximum 8.104919255735865e-7). Ruff, dependency
+compatibility and diff checks passed. No new ImageJ execution or performance
+benchmark occurred; no OS-level mouse automation is claimed.
+
 The November 18, 2026 RL inspector update removes the formula paragraph above
 the controls, marks each finite PSNR/SSIM measurement with a visible dot and
 shortens the horizontal axis label to Iteration. Straight segments still join
