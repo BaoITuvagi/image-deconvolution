@@ -13,6 +13,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
+from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication, QFileDialog, QInputDialog
 
 from image_deconvolution.core.algorithms import otf, rl
@@ -49,6 +51,25 @@ def verify_desktop(destination):
             raise AssertionError("Unexpected UI errors: " + "; ".join(errors))
         pump()
 
+    def click_view(view):
+        viewport = view.viewport()
+        point = viewport.rect().center()
+        for event_type, buttons in [
+            (QEvent.Type.MouseButtonPress, Qt.MouseButton.LeftButton),
+            (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton),
+        ]:
+            app.sendEvent(
+                viewport,
+                QMouseEvent(
+                    event_type,
+                    QPointF(point),
+                    QPointF(viewport.mapToGlobal(point)),
+                    Qt.MouseButton.LeftButton,
+                    buttons,
+                    Qt.KeyboardModifier.NoModifier,
+                ),
+            )
+
     def deny_network(*args, **kwargs):
         network_attempts.append("connection attempted")
         raise OSError("Network access disabled during desktop acceptance checks.")
@@ -71,6 +92,29 @@ def verify_desktop(destination):
             assert errors and "Open a degraded image" in errors[-1]
             errors.clear()
             checks.append("Missing observation rejected by the UI")
+
+            original_font = window.font()
+            for points in (9, 12, 16):
+                font = window.font()
+                font.setPointSize(points)
+                window.setFont(font)
+                pump()
+                header = window.table.horizontalHeader()
+                assert header.font().pointSize() == points
+                assert not header.font().bold() and not header.highlightSections()
+                window.table.fit_columns()
+                assert header.length() >= window.table.viewport().width()
+                for column, text in enumerate(window.table.HEADINGS):
+                    assert (
+                        window.table.columnWidth(column)
+                        >= header.fontMetrics().horizontalAdvance(text) + 24
+                    )
+            window.setFont(original_font)
+            window.resize(1280, 820)
+            pump()
+            checks.append(
+                "Readable full-width normal-weight history headers at 9/12/16-point text sizes"
+            )
 
             window.control_pages.setCurrentIndex(0)
             assert window.psf_file.text() == "" and not window.psf_file.isEnabled()
@@ -98,6 +142,8 @@ def verify_desktop(destination):
             window.sample_button.click()
             pump()
             assert window.observation.pixels.shape == (256, 256)
+            assert all(not box.isVisible() for box in window.image_boxes[2:])
+            assert window.grab().save(str(root / "loaded.png"))
             assert window.control_pages.currentIndex() == 0
             selector = window.saved_example.geometry()
             button = window.sample_button.geometry()
@@ -144,6 +190,11 @@ def verify_desktop(destination):
             assert not window.controls.isEnabled()
             wait()
             record = window.record
+            assert all(box.isVisible() for box in window.image_boxes[2:])
+            assert window.active_slot == 0
+            assert window.slot_records[0] is record
+            assert window.slot_records[1:] == [None, None]
+            assert window.grab().save(str(root / "first-run.png"))
             H = otf(prepare_psf(record.psf.pixels, record.observation.pixels.shape))
             np.testing.assert_allclose(
                 record.output, rl(record.observation.pixels, H, 5), rtol=0, atol=1e-12
@@ -152,7 +203,10 @@ def verify_desktop(destination):
 
             original = record.output.copy()
             window.iterations.setValue(6)
-            assert "earlier configuration" in window.result_info.text()
+            assert (
+                window.table.item(window.table.currentRow(), 8).text()
+                == "Earlier configuration"
+            )
             window.low.setValue(-0.1)
             window.high.setValue(1.2)
             window.refresh_views()
@@ -165,7 +219,35 @@ def verify_desktop(destination):
             np.testing.assert_array_equal(
                 read_image(output).pixels, original.astype(np.float32)
             )
-            checks.append("Stale-result label, display independence and UI TIFF save")
+            checks.append(
+                "Historical configuration marker, display independence and UI TIFF save"
+            )
+
+            for _ in range(3):
+                window.run_button.click()
+                wait()
+                assert window.active_slot == 0
+                assert window.slot_records[0] is window.history[-1]
+                assert window.slot_records[1:] == [None, None]
+            assert len(window.history) == 4
+            click_view(window.other_view)
+            assert window.active_slot == 1 and window.record is None
+            assert window.input_view.array is not None
+            assert not window.save_button.isEnabled()
+            window.select_history(0)
+            assert window.slot_records[1] is window.history[0]
+            window.run_button.click()
+            wait()
+            assert window.active_slot == 1
+            assert window.slot_records[1] is window.history[-1]
+            assert window.slot_records[2] is None
+            click_view(window.output_view)
+            assert window.table.currentRow() == 3
+            assert window.record is window.slot_records[0]
+            assert window.grab().save(str(root / "selected-slots.png"))
+            checks.append(
+                "Four repeated runs replace one slot; mouse selection routes history and new results"
+            )
 
             window.control_pages.setCurrentIndex(0)
             with patch.object(
@@ -244,12 +326,12 @@ def verify_desktop(destination):
             assert window.degradation["data_range"] == 1
             assert all(r.quality is not None for r in window.history)
             assert all(r.input_quality is not None for r in window.history)
-            assert {
-                window.record.config.method,
-                window.other_run.currentData().config.method,
-                window.third_run.currentData().config.method,
-            } == {"IF", "TRIF", "RL"}
-            window.other_run.setCurrentIndex(2)
+            assert [run.config.method for run in window.slot_records] == [
+                "IF",
+                "TRIF",
+                "RL",
+            ]
+            window.select_slot(1)
             assert window.other_view.array is not None
             checks.append(
                 "Source-only ground truth -> explicit seeded observation -> three-method fixed-input comparison"
@@ -327,7 +409,7 @@ def verify_desktop(destination):
             window.clear_history()
             window.compare_button.click()
             wait()
-            window.other_run.setCurrentIndex(window.other_run.count() - 2)
+            window.select_slot(2)
             window.fit_views()
             pump(150)
             assert window.grab().save(str(root / "workspace.png"))

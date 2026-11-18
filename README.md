@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/input-workflow/Image Deconvolution/`;
+The updated local distribution is `dist/result-slots/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -29,8 +29,11 @@ and [third-party notices](docs/third-party-notices.md).
    a worker and displays all three outputs. Degraded-input and restored metrics
    share one ground truth/intensity scale; PSNR change makes improvements and
    regressions explicit. The table records input identity and algorithm time.
-3. Select a history row with the mouse or arrow keys. Additional results selectors
-   above the views list matching inputs only. View current inputs returns to the
+3. Click a result slot, then select a history row with the mouse or arrow keys
+   to place that saved run there. The first single-method run reveals three slots
+   and fills the left slot; later runs replace the selected slot. Compare fills
+   IF, TRIF, RL from left to right. The selection border identifies the run used
+   by the inspector and save/export actions. View current inputs returns to the
    next run's workspace. Scroll to zoom and drag to pan the synchronized views.
 4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
    iterations when compatible ground truth exists. Load Bars reference and change
@@ -45,7 +48,8 @@ The app also opens single grayscale TIFF/PNG files, generates or imports centere
 normalized PSFs, and simulates seeded Poisson degradation explicitly.
 PSF, sigma and L appear inside Inputs (after Noise seed, before Generate) or
 Restoration (above algorithm settings), and are hidden in the other sidebar
-sections. L sits immediately below Open PSF, and values are shared between panels.
+sections. The row order is PSF mode, Open PSF, Gaussian sigma, then intensity L;
+values are shared between panels.
 Editing these settings keeps the current observation fixed until Generate is
 explicitly clicked.
 Opening a clean source shows it only as ground truth; the observation stays empty

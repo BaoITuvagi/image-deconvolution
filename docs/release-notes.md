@@ -3,6 +3,46 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 result-slot update reveals three fixed restoration slots
+only after a run or historical result is displayed. The first single-method run
+fills and selects the left slot; repeated runs replace the selected slot and
+retain separate history entries. Click a slot, then a history row to place a
+saved run there. The other compatible slots stay fixed. Compare fills IF, TRIF,
+RL from left to right and retains the selected position. The selection border,
+history row, RL inspector and save/export actions refer to the same run; empty
+slots disable run-specific actions. Mouse selection and Enter/Space are supported.
+Historical input context stays separate from the current inputs for the next
+run, and incompatible comparison slots are cleared when switching input context.
+Run identifiers stay stable during history eviction, and evicted slots release
+their results.
+
+History uses normal-weight headers and one sizing policy before and after runs,
+fills the available width, and preserves readable headings with horizontal
+scrolling in narrow windows. Parameters includes the recorded intensity L.
+Redundant method/time/intensity, History context and selected-output summary
+lines and the Additional results selectors are removed. View current inputs is
+retained; degraded-input MSE, PSNR and SSIM are aligned separately and always
+refer to the displayed input snapshot. Output metrics and timing remain in
+history and exported measurements. Numerical algorithms, saved presets and
+saved-reference conventions are unchanged. The new local distribution is
+`dist/result-slots/Image Deconvolution`; earlier folders are preserved.
+
+All 45 regression tests passed, including result-slot replacement, mouse and
+keyboard selection, cross-input snapshots, recorded L, history eviction and
+failure recovery. Source and frozen builds passed thirteen desktop workflow
+groups, including readable headers at 9/12/16-point text sizes. The EXE passed
+from an empty working directory with development Python removed from PATH.
+All six saved DL2 comparisons passed with maximum absolute difference
+8.104919255735865e-7. Ruff lint/format, dependency compatibility and diff checks
+passed.
+
+Validation uses Qt interaction automation on the actual Windows window and
+visual inspection of captured layouts. The native Computer Use helper was
+unavailable (native pipe not found), so OS-level mouse automation and new native
+file-dialog checks were not performed in this update. The maintained workflow
+checks exercise file operations with selected paths supplied to the dialogs.
+No new ImageJ execution or performance benchmark is claimed.
+
 The input-workflow update puts each algorithm's full name directly in Method:
 RL (Richardson-Lucy), IF (Thresholded inverse filtering), and TRIF (Zeroth-order
 Tikhonov). The separate description row is removed; run and experiment-file
