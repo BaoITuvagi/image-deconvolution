@@ -31,9 +31,7 @@ class ResultSlot(QGroupBox):
 
     def fit_title(self):
         super().setTitle(
-            self.fontMetrics().elidedText(
-                self.full_title, Qt.TextElideMode.ElideRight, max(0, self.width() - 20)
-            )
+            self.fontMetrics().elidedText(self.full_title, Qt.TextElideMode.ElideRight, max(0, self.width() - 20))
         )
 
     def minimumSizeHint(self):
@@ -61,10 +59,7 @@ class ResultSlot(QGroupBox):
         self.update()
 
     def eventFilter(self, watched, event):
-        if (
-            event.type() == QEvent.Type.MouseButtonPress
-            and event.button() == Qt.MouseButton.LeftButton
-        ):
+        if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
             self.selected.emit()
         return super().eventFilter(watched, event)
 

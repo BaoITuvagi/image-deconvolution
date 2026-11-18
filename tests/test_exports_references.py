@@ -36,9 +36,7 @@ class ExportReferenceTests(unittest.TestCase):
             self.assertEqual(config.regularization, 0.1)
             self.assertEqual(config.epsilon, 1e-6)
             self.assertEqual(config.data_range, 1)
-            self.assertLess(
-                result["max_abs"], 1e-6, (result["image"], result["method"])
-            )
+            self.assertLess(result["max_abs"], 1e-6, (result["image"], result["method"]))
             self.assertLess(result["rmse"], 1e-6)
             self.assertAlmostEqual(
                 result["reference_quality_python"]["psnr"],
@@ -57,12 +55,8 @@ class ExportReferenceTests(unittest.TestCase):
             images, config, degradation = load_bundle(path)
             self.assertEqual(config, record.config)
             self.assertIsNone(degradation)
-            np.testing.assert_array_equal(
-                images["observation"].pixels, record.observation.pixels
-            )
-            rerun = restore(
-                images["observation"], images["psf"], config, images["ground_truth"]
-            )
+            np.testing.assert_array_equal(images["observation"].pixels, record.observation.pixels)
+            rerun = restore(images["observation"], images["psf"], config, images["ground_truth"])
             np.testing.assert_allclose(rerun.output, record.output, rtol=0, atol=1e-12)
             np.testing.assert_array_equal(
                 read_image(folder / "RL_output.tif").pixels,
@@ -104,21 +98,15 @@ class ExportReferenceTests(unittest.TestCase):
                 ("TRIF", True),
             ]:
                 with self.subTest(method=method, capture=capture):
-                    record = restore(
-                        observation, psf, RunConfig(5, method=method, inspect=capture)
-                    )
-                    path = export_bundle(
-                        Path(directory) / f"{method}_{capture}", record
-                    )
+                    record = restore(observation, psf, RunConfig(5, method=method, inspect=capture))
+                    path = export_bundle(Path(directory) / f"{method}_{capture}", record)
                     saved = load_experiment(path)
                     np.testing.assert_array_equal(saved.output, record.output)
                     self.assertIsNone(saved.quality)
                     self.assertIsNone(saved.input_quality)
                     self.assertEqual(saved.curve, [])
                     self.assertEqual(bool(saved.steps), method == "RL" and capture)
-                    self.assertEqual(
-                        bool(saved.inspection_note), method == "RL" and not capture
-                    )
+                    self.assertEqual(bool(saved.inspection_note), method == "RL" and not capture)
 
     def test_legacy_reopens_tiff_recorded_measurements_and_curve_without_steps(self):
         observation, psf, truth = research_example("cells")
@@ -130,9 +118,7 @@ class ExportReferenceTests(unittest.TestCase):
             del data["result"]
             path.write_text(json.dumps(data))
             saved = load_experiment(path)
-            np.testing.assert_array_equal(
-                saved.output, record.output.astype(np.float32)
-            )
+            np.testing.assert_array_equal(saved.output, record.output.astype(np.float32))
             self.assertEqual(saved.quality, record.quality)
             self.assertEqual(saved.seconds, record.seconds)
             self.assertEqual(saved.curve, record.curve)
@@ -177,9 +163,7 @@ class ExportReferenceTests(unittest.TestCase):
             path.write_text(json.dumps(original))
             array_file = path.parent / "output.npy"
             np.save(array_file, np.zeros((12, 12)))
-            original["result"]["array"]["file_sha256"] = hashlib.sha256(
-                array_file.read_bytes()
-            ).hexdigest()
+            original["result"]["array"]["file_sha256"] = hashlib.sha256(array_file.read_bytes()).hexdigest()
             path.write_text(json.dumps(original))
             with self.assertRaisesRegex(ValueError, "shape"):
                 load_experiment(path)
@@ -208,9 +192,7 @@ class ExportReferenceTests(unittest.TestCase):
             with self.assertRaises(MissingInput):
                 load_bundle(path)
             images, _, _ = load_bundle(path, {"observation": moved})
-            np.testing.assert_array_equal(
-                images["observation"].pixels, observation.pixels
-            )
+            np.testing.assert_array_equal(images["observation"].pixels, observation.pixels)
             with moved.open("ab") as stream:
                 stream.write(b"tampered")
             with self.assertRaisesRegex(ValueError, "hash"):

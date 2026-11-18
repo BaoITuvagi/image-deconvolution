@@ -27,3 +27,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 image_deconvolution = ["resources/samples/*.tif", "resources/samples/*.json", "resources/samples/*.csv"]
+
+[tool.ruff]
+line-length = 120

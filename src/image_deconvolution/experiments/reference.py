@@ -16,9 +16,7 @@ def verify_resources():
     for entry in manifest["files"]:
         digest = hashlib.sha256(sample_path(entry["file"]).read_bytes()).hexdigest()
         if digest != entry["sha256"]:
-            raise ValueError(
-                f"Bundled research resource failed its hash check: {entry['file']}"
-            )
+            raise ValueError(f"Bundled research resource failed its hash check: {entry['file']}")
 
 
 def research_example(name):

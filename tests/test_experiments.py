@@ -30,9 +30,7 @@ class ExperimentTests(unittest.TestCase):
             "RL": lambda: rl(original, H, 5),
         }
         for method, expected in functions.items():
-            record = restore(
-                self.observation, self.psf, RunConfig(5, method=method), self.truth
-            )
+            record = restore(self.observation, self.psf, RunConfig(5, method=method), self.truth)
             np.testing.assert_array_equal(record.output, expected())
             self.assertIsNotNone(record.quality)
         np.testing.assert_array_equal(self.observation.pixels, original)
@@ -68,12 +66,8 @@ class ExperimentTests(unittest.TestCase):
         self.assertAlmostEqual(unit["mse"] * 255**2, scaled["mse"])
         record = restore(self.observation, self.psf, RunConfig(5), self.truth)
         self.assertEqual(record.input_quality, unit)
-        self.assertAlmostEqual(
-            record.psnr_change, record.quality["psnr"] - unit["psnr"]
-        )
-        self.assertIsNone(
-            restore(self.observation, self.psf, RunConfig(5)).input_quality
-        )
+        self.assertAlmostEqual(record.psnr_change, record.quality["psnr"] - unit["psnr"])
+        self.assertIsNone(restore(self.observation, self.psf, RunConfig(5)).input_quality)
         zeros = ImageData(np.zeros((16, 16)), "perfect zero image")
         delta = np.zeros((16, 16))
         delta[8, 8] = 1
@@ -86,16 +80,12 @@ class ExperimentTests(unittest.TestCase):
         H = otf(prepare_psf(self.psf.pixels, y.shape))
         result, steps, curve, seconds = trace_rl(y, H, 20, 1e-6, self.truth)
         np.testing.assert_array_equal(result, rl(y, H, 20))
-        self.assertLessEqual(
-            sum(a.nbytes for s in steps.values() for a in s.values()), 64 * 1024 * 1024
-        )
+        self.assertLessEqual(sum(a.nbytes for s in steps.values() for a in s.values()), 64 * 1024 * 1024)
         self.assertLessEqual(len(steps), 8)
         self.assertGreater(seconds, 0)
         for iteration, step in steps.items():
             arrays = list(step.values())
-            np.testing.assert_array_equal(
-                arrays[0], y if iteration == 1 else rl(y, H, iteration - 1)
-            )
+            np.testing.assert_array_equal(arrays[0], y if iteration == 1 else rl(y, H, iteration - 1))
             np.testing.assert_array_equal(arrays[1], blur(arrays[0], H))
             np.testing.assert_array_equal(arrays[2], y / np.maximum(arrays[1], 1e-6))
             np.testing.assert_array_equal(arrays[3], blur(arrays[2], H.conj()))
@@ -114,9 +104,7 @@ class ExperimentTests(unittest.TestCase):
                 self.assertAlmostEqual(record.quality["psnr"], expected_psnr, places=5)
         for iterations in [2, 5]:
             with self.subTest(iterations=iterations):
-                normal = restore(
-                    self.observation, self.psf, RunConfig(iterations), self.truth
-                )
+                normal = restore(self.observation, self.psf, RunConfig(iterations), self.truth)
                 inspected = restore(
                     self.observation,
                     self.psf,
@@ -130,6 +118,4 @@ class ExperimentTests(unittest.TestCase):
         y = read_image(sample_path("bars_s2_p200_r0_input.tif"))
         truth = read_image(sample_path("bars_gt.tif"))
         record = restore(y, self.psf, RunConfig(100, inspect=True), truth)
-        self.assertLess(
-            record.curve[-1]["psnr"], max(row["psnr"] for row in record.curve)
-        )
+        self.assertLess(record.curve[-1]["psnr"], max(row["psnr"] for row in record.curve))

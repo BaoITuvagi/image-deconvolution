@@ -27,9 +27,7 @@ CONVENTIONS = {
 class MissingInput(ValueError):
     def __init__(self, role, path):
         self.role, self.path = role, path
-        super().__init__(
-            f"Missing {role} array: {path}. Locate its matching .npy file."
-        )
+        super().__init__(f"Missing {role} array: {path}. Locate its matching .npy file.")
 
 
 def environment_versions():
@@ -130,12 +128,7 @@ def export_bundle(destination, record):
             row = {k: getattr(record.config, k) for k in columns[:6]}
             row.update(algorithm_seconds=record.seconds, metric_note=record.metric_note)
             row.update(record.quality or {})
-            row.update(
-                {
-                    f"input_{key}": value
-                    for key, value in (record.input_quality or {}).items()
-                }
-            )
+            row.update({f"input_{key}": value for key, value in (record.input_quality or {}).items()})
             if record.psnr_change is not None:
                 row["psnr_change_db"] = record.psnr_change
             writer.writerow(row)
@@ -143,9 +136,7 @@ def export_bundle(destination, record):
         if record.curve:
             created.append(curve)
             with curve.open("x", newline="", encoding="utf-8") as stream:
-                writer = csv.DictWriter(
-                    stream, fieldnames=["iteration", "mse", "psnr", "ssim"]
-                )
+                writer = csv.DictWriter(stream, fieldnames=["iteration", "mse", "psnr", "ssim"])
                 writer.writeheader()
                 writer.writerows(record.curve)
         configuration = {
@@ -197,9 +188,7 @@ def _manifest(configuration_path):
         raise ValueError("Experiment JSON exceeds the supported size.")
     data = json.loads(
         path.read_text(encoding="utf-8"),
-        parse_constant=lambda x: (_ for _ in ()).throw(
-            ValueError("Nonfinite JSON numbers are invalid.")
-        ),
+        parse_constant=lambda x: (_ for _ in ()).throw(ValueError("Nonfinite JSON numbers are invalid.")),
     )
     if (
         not isinstance(data, dict)
@@ -234,28 +223,17 @@ def load_bundle(configuration_path, overrides=None):
         try:
             relative = Path(entry["file"])
             if relative.name != entry["file"] or relative.suffix != ".npy":
-                raise ValueError(
-                    "Experiment input filenames must be local .npy basenames."
-                )
-            input_path = (
-                Path(overrides[role]) if role in overrides else path.parent / relative
-            )
+                raise ValueError("Experiment input filenames must be local .npy basenames.")
+            input_path = Path(overrides[role]) if role in overrides else path.parent / relative
             if not input_path.is_file():
                 raise MissingInput(role, input_path)
             if input_path.stat().st_size > 16 * 1024 * 1024 * 8 + 4096:
                 raise ValueError("Experiment array exceeds the supported size.")
-            if (
-                hashlib.sha256(input_path.read_bytes()).hexdigest()
-                != entry["file_sha256"]
-            ):
+            if hashlib.sha256(input_path.read_bytes()).hexdigest() != entry["file_sha256"]:
                 raise ValueError(f"The {role} array failed its file hash check.")
             array = np.load(input_path, allow_pickle=False, mmap_mode="r")
             identity = entry["identity"]
-            if (
-                array.dtype != np.float64
-                or array.ndim != 2
-                or list(array.shape) != identity.get("shape")
-            ):
+            if array.dtype != np.float64 or array.ndim != 2 or list(array.shape) != identity.get("shape"):
                 raise ValueError(f"Invalid saved {role} array shape or type.")
             image = ImageData(
                 array,
@@ -284,9 +262,7 @@ def _checked_file(root, entry, suffix, limit):
         raise ValueError("Saved result filenames must be local basenames.")
     file = root / name
     if not file.is_file():
-        raise ValueError(
-            f"Missing saved result file: {name}. Restore the complete export folder."
-        )
+        raise ValueError(f"Missing saved result file: {name}. Restore the complete export folder.")
     if file.stat().st_size > limit:
         raise ValueError("Saved result file exceeds the supported size.")
     if hashlib.sha256(file.read_bytes()).hexdigest() != entry.get("file_sha256"):
@@ -298,13 +274,9 @@ def _saved_array(root, entry, shape):
     file = _checked_file(root, entry, ".npy", 4096 * 4096 * 8 + 4096)
     mapped = np.load(file, allow_pickle=False, mmap_mode="r")
     if mapped.shape != shape or mapped.dtype != np.float64:
-        raise ValueError(
-            "Saved result arrays must match the input shape and float64 type."
-        )
+        raise ValueError("Saved result arrays must match the input shape and float64 type.")
     if not np.isfinite(mapped).all() or array_hash(mapped) != entry.get("array_sha256"):
-        raise ValueError(
-            "Saved result array failed its numerical hash or finiteness check."
-        )
+        raise ValueError("Saved result array failed its numerical hash or finiteness check.")
     array = np.array(mapped)
     array.setflags(write=False)
     return array
@@ -323,10 +295,7 @@ def _quality(values):
         return None
     if not isinstance(values, dict) or set(values) != {"mse", "psnr", "ssim"}:
         raise ValueError("Invalid saved quality measurements.")
-    result = {
-        key: _number(values[key], key, allow_infinity=key == "psnr")
-        for key in ("mse", "psnr", "ssim")
-    }
+    result = {key: _number(values[key], key, allow_infinity=key == "psnr") for key in ("mse", "psnr", "ssim")}
     if result["mse"] < 0 or not -1 <= result["ssim"] <= 1:
         raise ValueError("Invalid saved quality measurement range.")
     return result
@@ -356,9 +325,7 @@ def load_experiment(configuration_path, overrides=None):
     data = _manifest(path)
     images, config, degradation = load_bundle(path, overrides)
     shape = images["observation"].pixels.shape
-    output_file = _checked_file(
-        path.parent, data.get("output"), ".tif", 4096 * 4096 * 8 + 4096
-    )
+    output_file = _checked_file(path.parent, data.get("output"), ".tif", 4096 * 4096 * 8 + 4096)
     steps, curve, inspection_note = {}, [], ""
     if data["schema_version"] == 2:
         result = data.get("result")
@@ -382,17 +349,11 @@ def load_experiment(configuration_path, overrides=None):
                 raise TypeError("Invalid saved RL checkpoint.")
             iteration = checkpoint.get("iteration")
             phases = checkpoint.get("phases")
-            if (
-                type(iteration) is not int
-                or not previous < iteration <= config.iterations
-            ):
+            if type(iteration) is not int or not previous < iteration <= config.iterations:
                 raise ValueError("Invalid saved RL checkpoint iteration.")
             if not isinstance(phases, dict) or set(phases) != set(RL_PHASES):
                 raise ValueError("A saved RL checkpoint must include all five phases.")
-            steps[iteration] = {
-                phase: _saved_array(path.parent, phases[phase], shape)
-                for phase in RL_PHASES
-            }
+            steps[iteration] = {phase: _saved_array(path.parent, phases[phase], shape) for phase in RL_PHASES}
             previous = iteration
     else:
         # Version 1 only stored a rounded TIFF, plus timing and curves in CSVs.
@@ -431,9 +392,7 @@ def load_experiment(configuration_path, overrides=None):
                             {
                                 "iteration": int(row["iteration"]),
                                 **{
-                                    key: "Infinity"
-                                    if row[key] == "inf"
-                                    else float(row[key])
+                                    key: "Infinity" if row[key] == "inf" else float(row[key])
                                     for key in ("mse", "psnr", "ssim")
                                 },
                             }
@@ -445,9 +404,7 @@ def load_experiment(configuration_path, overrides=None):
                 raise ValueError("Invalid legacy RL curve CSV.") from exc
         if config.method == "RL":
             inspection_note = "This legacy export has no RL checkpoints. Enable Capture RL steps and rerun to inspect intermediate images."
-        note += (
-            " Reopened legacy float32 TIFF; saved measurements precede TIFF rounding."
-        )
+        note += " Reopened legacy float32 TIFF; saved measurements precede TIFF rounding."
     if seconds < 0 or not isinstance(note, str) or not isinstance(inspection_note, str):
         raise ValueError("Invalid saved result timing or notes.")
     values = _quality(data.get("measurements"))
@@ -462,7 +419,9 @@ def load_experiment(configuration_path, overrides=None):
     ):
         raise ValueError("Saved quality measurements require suitable ground truth.")
     if not steps and config.method == "RL" and not inspection_note:
-        inspection_note = "This saved run has no RL checkpoints. Enable Capture RL steps and rerun to inspect intermediate images."
+        inspection_note = (
+            "This saved run has no RL checkpoints. Enable Capture RL steps and rerun to inspect intermediate images."
+        )
     return RunRecord(
         observation=images["observation"],
         psf=images["psf"],

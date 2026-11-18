@@ -82,7 +82,5 @@ def metrics(ref, x):
     v1 = g(ref * ref) - a * a
     v2 = g(x * x) - b * b
     cov = g(ref * x) - a * b
-    m = ((2 * a * b + 0.01**2) * (2 * cov + 0.03**2)) / (
-        (a * a + b * b + 0.01**2) * (v1 + v2 + 0.03**2)
-    )
+    m = ((2 * a * b + 0.01**2) * (2 * cov + 0.03**2)) / ((a * a + b * b + 0.01**2) * (v1 + v2 + 0.03**2))
     return {"mse": mse, "psnr": psnr, "ssim": float(m[5:-5, 5:-5].mean())}

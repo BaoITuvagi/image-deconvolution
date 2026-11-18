@@ -48,16 +48,10 @@ class InspectionPanel(QWidget):
 
     def show_curve(self, *_):
         metric = self.metric_choice.currentText().lower()
-        self.chart_view.set_curve(
-            [] if self.record is None else self.record.curve, metric
-        )
+        self.chart_view.set_curve([] if self.record is None else self.record.curve, metric)
 
     def show_phase(self, *_):
-        if (
-            self.record is None
-            or self.iteration.currentData() is None
-            or not self.phase.currentText()
-        ):
+        if self.record is None or self.iteration.currentData() is None or not self.phase.currentText():
             self.view.set_image(None, 0, 1)
             self.range_info.setText(
                 self.record.inspection_note
@@ -71,9 +65,7 @@ class InspectionPanel(QWidget):
         if high <= low:
             high = low + 1
         self.view.set_image(array, low, high)
-        values = next(
-            (r for r in self.record.curve if r["iteration"] == iteration), None
-        )
+        values = next((r for r in self.record.curve if r["iteration"] == iteration), None)
         detail = (
             ""
             if values is None

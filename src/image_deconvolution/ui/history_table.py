@@ -40,18 +40,12 @@ class HistoryTable(QTableWidget):
             (5, "-123.45"),
             (6, "-0.12345"),
         ]:
-            minimum[column] = max(
-                minimum[column], metrics.horizontalAdvance(sample) + 16
-            )
+            minimum[column] = max(minimum[column], metrics.horizontalAdvance(sample) + 16)
         extra = max(0, self.viewport().width() - sum(minimum))
         weights = [1, 3, 4, 1, 1, 1, 1, 1, 3]
         assigned = 0
         for column, width in enumerate(minimum):
-            share = (
-                extra - assigned
-                if column == len(minimum) - 1
-                else extra * weights[column] // sum(weights)
-            )
+            share = extra - assigned if column == len(minimum) - 1 else extra * weights[column] // sum(weights)
             self.setColumnWidth(column, width + share)
             assigned += share
         self.resizeRowsToContents()

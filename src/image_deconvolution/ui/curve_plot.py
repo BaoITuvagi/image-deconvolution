@@ -33,11 +33,7 @@ class CurvePlot(QWidget):
         )
         plot = QRectF(76, 40, max(1, self.width() - 98), max(1, self.height() - 92))
         painter.drawRect(plot)
-        points = [
-            (r["iteration"], r[self.metric_key])
-            for r in self.rows
-            if math.isfinite(r[self.metric_key])
-        ]
+        points = [(r["iteration"], r[self.metric_key]) for r in self.rows if math.isfinite(r[self.metric_key])]
         if not points:
             painter.drawText(
                 plot,

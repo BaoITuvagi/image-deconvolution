@@ -40,9 +40,7 @@ class ImageData:
 def validate_image(array):
     a = np.asarray(array, dtype=np.float64)
     if a.ndim != 2 or min(a.shape) < 2:
-        raise ValueError(
-            "Select a two-dimensional grayscale image, at least 2 x 2 pixels."
-        )
+        raise ValueError("Select a two-dimensional grayscale image, at least 2 x 2 pixels.")
     if a.size > 4096 * 4096:
         raise ValueError("Images are limited to 16 megapixels in this version.")
     if not np.isfinite(a).all():
@@ -59,9 +57,7 @@ def read_image(path, policy="preserve"):
     try:
         with Image.open(path) as image:
             if getattr(image, "n_frames", 1) != 1:
-                raise ValueError(
-                    "Stacks are unsupported. Select a single 2D grayscale image."
-                )
+                raise ValueError("Stacks are unsupported. Select a single 2D grayscale image.")
             if image.mode not in {"L", "I", "F", "I;16", "I;16L", "I;16B"}:
                 raise ValueError(
                     "Only grayscale input is supported. Convert color or palette images explicitly before loading."
@@ -79,9 +75,7 @@ def read_image(path, policy="preserve"):
             )
         pixels = pixels / np.iinfo(raw.dtype).max
     nominal_range = (
-        (1.0 if policy == "normalize_integer" else float(np.iinfo(raw.dtype).max))
-        if raw.dtype.kind == "u"
-        else None
+        (1.0 if policy == "normalize_integer" else float(np.iinfo(raw.dtype).max)) if raw.dtype.kind == "u" else None
     )
     return ImageData(
         pixels,

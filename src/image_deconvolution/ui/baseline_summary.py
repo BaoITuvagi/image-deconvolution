@@ -55,9 +55,7 @@ class BaselineSummary(QLabel):
         request = observation, truth, data_range
         self.requested = request
         if self.cache is not None and self.key(self.cache[0]) == self.key(request):
-            self.display_values(
-                self.cache[1], f"Current inputs; intensity L={data_range:g}."
-            )
+            self.display_values(self.cache[1], f"Current inputs; intensity L={data_range:g}.")
             return
         self.cache = None
         self.display_values(None)
@@ -71,12 +69,8 @@ class BaselineSummary(QLabel):
         request = self.requested
         observation, truth, data_range = request
         self.running_key = self.key(request)
-        self.worker = ProcessingThread(
-            lambda: (request, quality(truth, observation.pixels, data_range)[0]), self
-        )
-        self.worker.result.connect(
-            self.receive_values, Qt.ConnectionType.QueuedConnection
-        )
+        self.worker = ProcessingThread(lambda: (request, quality(truth, observation.pixels, data_range)[0]), self)
+        self.worker.result.connect(self.receive_values, Qt.ConnectionType.QueuedConnection)
         self.worker.failed.connect(self.measurement_failed)
         self.worker.finished.connect(self.measurement_finished)
         self.worker.start()

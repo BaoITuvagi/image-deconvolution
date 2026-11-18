@@ -46,9 +46,7 @@ class ReferenceTable(QTableWidget):
         minimum = [metrics.horizontalAdvance(text) + 24 for text in self.HEADINGS]
         samples = ("fibers", "TRIF") + ("-1.23456789e-07",) * 4
         for column, sample in enumerate(samples):
-            minimum[column] = max(
-                minimum[column], metrics.horizontalAdvance(sample) + 16
-            )
+            minimum[column] = max(minimum[column], metrics.horizontalAdvance(sample) + 16)
         extra = max(0, self.viewport().width() - sum(minimum))
         for column, width in enumerate(minimum):
             share = extra // len(minimum) + (column < extra % len(minimum))
@@ -72,9 +70,7 @@ class ReferencePanel(QWidget):
         self.rows = []
         layout = QVBoxLayout(self)
         layout.addWidget(
-            QLabel(
-                "New Python calculations against six saved DeconvolutionLab2 outputs. No ImageJ is executed."
-            )
+            QLabel("New Python calculations against six saved DeconvolutionLab2 outputs. No ImageJ is executed.")
         )
         self.verify = QPushButton("Compare six saved RL / TRIF references")
         self.verify.clicked.connect(self.verify_requested.emit)
@@ -124,9 +120,7 @@ class ReferencePanel(QWidget):
                 self.table.setItem(
                     row,
                     column,
-                    QTableWidgetItem(
-                        value if isinstance(value, str) else f"{value:.9g}"
-                    ),
+                    QTableWidgetItem(value if isinstance(value, str) else f"{value:.9g}"),
                 )
         self.table.setCurrentCell(0, 0)
         self.table.selectRow(0)

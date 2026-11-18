@@ -43,15 +43,11 @@ class ImageIOTests(unittest.TestCase):
             a = np.arange(256, dtype=np.uint8).reshape(16, 16)
             Image.fromarray(a).save(path)
             np.testing.assert_array_equal(read_image(path).pixels, a)
-            np.testing.assert_array_equal(
-                read_image(path, "normalize_integer").pixels, a / 255
-            )
+            np.testing.assert_array_equal(read_image(path, "normalize_integer").pixels, a / 255)
             output = Path(directory) / "output.tif"
             values = np.linspace(-0.25, 1.5, 256).reshape(16, 16)
             save_tiff(output, values)
-            np.testing.assert_array_equal(
-                read_image(output).pixels, values.astype(np.float32)
-            )
+            np.testing.assert_array_equal(read_image(output).pixels, values.astype(np.float32))
             with self.assertRaises(FileExistsError):
                 save_tiff(output, values)
 
@@ -62,9 +58,7 @@ class ImageIOTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "grayscale"):
                 read_image(color)
             stack = Path(directory) / "stack.tif"
-            Image.new("L", (16, 16)).save(
-                stack, save_all=True, append_images=[Image.new("L", (16, 16))]
-            )
+            Image.new("L", (16, 16)).save(stack, save_all=True, append_images=[Image.new("L", (16, 16))])
             with self.assertRaisesRegex(ValueError, "Stacks"):
                 read_image(stack)
         for a in [np.full((16, 16), np.nan), np.zeros((2, 2, 2))]:
@@ -115,15 +109,11 @@ class DesktopTests(unittest.TestCase):
 
     def wait_for_worker(self):
         deadline = time.monotonic() + 20
-        while (
-            self.window.worker is not None or self.window.baseline.pending
-        ) and time.monotonic() < deadline:
+        while (self.window.worker is not None or self.window.baseline.pending) and time.monotonic() < deadline:
             self.app.processEvents()
             time.sleep(0.002)  # Yield the GIL so the Python worker can make progress.
         self.assertIsNone(self.window.worker, "Worker failed to finish")
-        self.assertFalse(
-            self.window.baseline.pending, "Baseline measurement failed to finish"
-        )
+        self.assertFalse(self.window.baseline.pending, "Baseline measurement failed to finish")
 
     def test_baseline_on_load_current_range_and_unavailable_inputs(self):
         w = self.window
@@ -139,9 +129,7 @@ class DesktopTests(unittest.TestCase):
             self.assertIsNone(w.record)
             self.assertFalse(w.results_visible)
             self.app.processEvents()
-            self.assertGreater(
-                w.input_view.height(), 0.7 * w.image_layout.geometry().height()
-            )
+            self.assertGreater(w.input_view.height(), 0.7 * w.image_layout.geometry().height())
         observation, truth = w.observation, w.ground_truth
         w.data_range.setValue(2)
         self.wait_for_worker()
@@ -168,9 +156,7 @@ class DesktopTests(unittest.TestCase):
         w.refresh_views()
         self.wait_for_worker()
         self.assertEqual(w.baseline.text(), "Degraded input: N/A")
-        with patch.object(
-            w, "choose_image", return_value=str(sample_path("cells_gt.tif"))
-        ):
+        with patch.object(w, "choose_image", return_value=str(sample_path("cells_gt.tif"))):
             w.open_source()
         self.assertIsNone(w.observation)
         self.assertEqual(w.baseline.text(), "Degraded input: N/A")
@@ -191,9 +177,7 @@ class DesktopTests(unittest.TestCase):
                 gate.wait(5)
             return quality(truth, pixels, data_range)
 
-        with patch(
-            "image_deconvolution.ui.baseline_summary.quality", side_effect=measure
-        ):
+        with patch("image_deconvolution.ui.baseline_summary.quality", side_effect=measure):
             w.load_sample()
             self.app.processEvents()
             self.assertIsNotNone(w.baseline.worker)
@@ -216,9 +200,7 @@ class DesktopTests(unittest.TestCase):
         historical = w.record
         gate.clear()
         calls.clear()
-        with patch(
-            "image_deconvolution.ui.baseline_summary.quality", side_effect=measure
-        ):
+        with patch("image_deconvolution.ui.baseline_summary.quality", side_effect=measure):
             w.load_sample()
             self.app.processEvents()
             w.select_history(0)
@@ -273,9 +255,7 @@ class DesktopTests(unittest.TestCase):
                     self.assertFalse(hasattr(box, "parameters"))
                 heights = [view.viewport().height() for view in w.views[2:]]
                 self.assertLessEqual(max(heights) - min(heights), 1)
-                self.assertEqual(
-                    w.baseline.parentWidget(), w.current_button.parentWidget()
-                )
+                self.assertEqual(w.baseline.parentWidget(), w.current_button.parentWidget())
                 self.assertTrue(w.table.isVisible())
         w.setFont(self.app.font())
         w.resize(1700, 1000)
@@ -370,9 +350,7 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(w.data_range.value(), 2)
         np.testing.assert_array_equal(w.input_view.array, cells[0].observation.pixels)
         np.testing.assert_array_equal(w.truth_view.array, cells[0].ground_truth.pixels)
-        self.assertIn(
-            f"PSNR {cells[0].input_quality['psnr']:.3f} dB", w.baseline.text()
-        )
+        self.assertIn(f"PSNR {cells[0].input_quality['psnr']:.3f} dB", w.baseline.text())
         self.assertIn("L=1", w.table.item(0, 2).text())
         self.assertIn("L=2", w.table.item(3, 2).text())
         w.select_slot(2)
@@ -440,9 +418,7 @@ class DesktopTests(unittest.TestCase):
                 metrics = table.horizontalHeader().fontMetrics()
                 self.assertGreaterEqual(sum(columns), table.viewport().width())
                 for i, heading in enumerate(table.HEADINGS):
-                    self.assertGreaterEqual(
-                        columns[i], metrics.horizontalAdvance(heading) + 24
-                    )
+                    self.assertGreaterEqual(columns[i], metrics.horizontalAdvance(heading) + 24)
                 self.assertFalse(table.horizontalHeader().font().bold())
                 self.assertEqual(table.horizontalHeader().font().pointSize(), points)
                 self.assertFalse(table.horizontalHeader().highlightSections())
@@ -450,9 +426,7 @@ class DesktopTests(unittest.TestCase):
                 w.run_restoration()
                 self.wait_for_worker()
                 self.app.processEvents()
-                self.assertEqual(
-                    columns, [table.columnWidth(i) for i in range(table.columnCount())]
-                )
+                self.assertEqual(columns, [table.columnWidth(i) for i in range(table.columnCount())])
                 self.assertIn("L=1", table.item(0, 2).text())
                 w.clear_history()
                 self.app.processEvents()
@@ -475,9 +449,7 @@ class DesktopTests(unittest.TestCase):
         self.wait_for_worker()
         self.assertTrue(self.window.controls.isEnabled())
         received_on = []
-        self.window.start_operation(
-            lambda: "finished", lambda _: received_on.append(QThread.currentThread())
-        )
+        self.window.start_operation(lambda: "finished", lambda _: received_on.append(QThread.currentThread()))
         self.wait_for_worker()
         self.assertEqual(received_on, [self.app.thread()])
         self.assertIsNotNone(self.window.record)
@@ -494,14 +466,10 @@ class DesktopTests(unittest.TestCase):
         np.testing.assert_array_equal(self.window.record.output, snapshot)
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = str(Path(directory) / "restoration.tif")
-            with patch(
-                "PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(path, "")
-            ):
+            with patch("PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(path, "")):
                 self.window.save_output()
             self.assertFalse(self.warning.called, str(self.warning.call_args))
-            np.testing.assert_array_equal(
-                read_image(path).pixels, snapshot.astype(np.float32)
-            )
+            np.testing.assert_array_equal(read_image(path).pixels, snapshot.astype(np.float32))
 
     def test_worker_failure_and_close_guard(self):
         def fail():
@@ -520,9 +488,7 @@ class DesktopTests(unittest.TestCase):
         original = self.window.observation.pixels.copy()
         self.window.compare_methods()
         self.wait_for_worker()
-        self.assertEqual(
-            [r.config.method for r in self.window.history], ["IF", "TRIF", "RL"]
-        )
+        self.assertEqual([r.config.method for r in self.window.history], ["IF", "TRIF", "RL"])
         self.assertEqual(self.window.table.rowCount(), 3)
         self.assertIsNotNone(self.window.record.quality)
         self.window.select_slot(2)
@@ -532,9 +498,7 @@ class DesktopTests(unittest.TestCase):
         self.window.input_view.scale(2, 2)
         self.window.input_view._notify()
         for view in self.window.views:
-            self.assertEqual(
-                view.transform().m11(), self.window.input_view.transform().m11()
-            )
+            self.assertEqual(view.transform().m11(), self.window.input_view.transform().m11())
             self.assertFalse(view._auto_fit)
         self.window.fit_views()
         self.assertTrue(all(v._auto_fit for v in self.window.views))
@@ -603,9 +567,7 @@ class DesktopTests(unittest.TestCase):
                 self.window.open_experiment()
                 self.wait_for_worker()
             reopened = self.window.record
-            self.assertEqual(
-                reopened.saved_from, str((Path(folder) / "experiment.json").resolve())
-            )
+            self.assertEqual(reopened.saved_from, str((Path(folder) / "experiment.json").resolve()))
             np.testing.assert_array_equal(reopened.output, output)
             self.assertEqual(reopened.quality, record.quality)
             self.assertEqual(reopened.seconds, record.seconds)
@@ -613,14 +575,10 @@ class DesktopTests(unittest.TestCase):
             self.assertIs(self.window.inspector.record, reopened)
             self.assertEqual(self.window.inspector.iteration.count(), len(record.steps))
             self.assertEqual(self.window.tabs.currentIndex(), 0)
-            self.assertIn(
-                "No restoration was executed", self.window.statusBar().currentMessage()
-            )
+            self.assertIn("No restoration was executed", self.window.statusBar().currentMessage())
             self.window.run_restoration()
             self.wait_for_worker()
-            np.testing.assert_allclose(
-                self.window.record.output, output, rtol=0, atol=1e-12
-            )
+            np.testing.assert_allclose(self.window.record.output, output, rtol=0, atol=1e-12)
         self.assertFalse(self.warning.called, str(self.warning.call_args))
 
     def test_inspector_plot_renders_without_overriding_qt_metrics(self):
@@ -649,14 +607,10 @@ class DesktopTests(unittest.TestCase):
         QTest.keyClick(self.window.table, Qt.Key.Key_Down)
         self.assertIs(self.window.record, self.window.history[1])
         self.assertEqual(self.window.record.config.method, "TRIF")
-        np.testing.assert_array_equal(
-            self.window.output_view.array, self.window.history[1].output
-        )
+        np.testing.assert_array_equal(self.window.output_view.array, self.window.history[1].output)
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             path = str(Path(directory) / "keyboard-selected.tif")
-            with patch(
-                "PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(path, "")
-            ):
+            with patch("PySide6.QtWidgets.QFileDialog.getSaveFileName", return_value=(path, "")):
                 self.window.save_output()
             np.testing.assert_array_equal(
                 read_image(path).pixels,
@@ -665,12 +619,8 @@ class DesktopTests(unittest.TestCase):
         self.window.load_bars()
         self.assertIsNone(self.window.record)
         self.assertEqual(len(self.window.history), 3)
-        np.testing.assert_array_equal(
-            self.window.input_view.array, self.window.observation.pixels
-        )
-        np.testing.assert_array_equal(
-            self.window.truth_view.array, self.window.ground_truth.pixels
-        )
+        np.testing.assert_array_equal(self.window.input_view.array, self.window.observation.pixels)
+        np.testing.assert_array_equal(self.window.truth_view.array, self.window.ground_truth.pixels)
         self.assertIsNone(self.window.output_view.array)
         self.assertFalse(self.window.save_button.isEnabled())
         self.assertFalse(self.window.export_button.isEnabled())
@@ -682,15 +632,11 @@ class DesktopTests(unittest.TestCase):
         )
         self.window.current_button.click()
         self.assertIsNone(self.window.record)
-        np.testing.assert_array_equal(
-            self.window.input_view.array, self.window.observation.pixels
-        )
+        np.testing.assert_array_equal(self.window.input_view.array, self.window.observation.pixels)
         self.assertEqual(len(self.window.history), 3)
 
     def test_truth_edits_refresh_without_discarding_history(self):
-        self.window.set_observation(
-            read_image(sample_path("cells_s2_p200_r0_input.tif"))
-        )
+        self.window.set_observation(read_image(sample_path("cells_s2_p200_r0_input.tif")))
         truth_path = str(sample_path("cells_gt.tif"))
         self.window.tabs.setCurrentIndex(1)
         with patch(
@@ -699,9 +645,7 @@ class DesktopTests(unittest.TestCase):
         ):
             self.window.open_truth()
         self.assertEqual(self.window.tabs.currentIndex(), 0)
-        np.testing.assert_array_equal(
-            self.window.truth_view.array, self.window.ground_truth.pixels
-        )
+        np.testing.assert_array_equal(self.window.truth_view.array, self.window.ground_truth.pixels)
         self.window.run_restoration()
         self.wait_for_worker()
         self.window.clear_truth()
@@ -713,9 +657,7 @@ class DesktopTests(unittest.TestCase):
             return_value=(truth_path, ""),
         ):
             self.window.open_source()
-        np.testing.assert_array_equal(
-            self.window.truth_view.array, self.window.source.pixels
-        )
+        np.testing.assert_array_equal(self.window.truth_view.array, self.window.source.pixels)
 
     def test_input_messages_resize_after_saved_example_and_source_loading(self):
         for points in (9, 12, 16):
@@ -735,9 +677,7 @@ class DesktopTests(unittest.TestCase):
                     self.app.processEvents()
                     selector = self.window.saved_example.geometry()
                     button = self.window.sample_button.geometry()
-                    self.assertLessEqual(
-                        abs(selector.center().y() - button.center().y()), 1
-                    )
+                    self.assertLessEqual(abs(selector.center().y() - button.center().y()), 1)
                     self.assertLess(selector.right(), button.left())
                     self.assertGreaterEqual(
                         button.width(),
@@ -760,27 +700,21 @@ class DesktopTests(unittest.TestCase):
                         self.window.truth_info,
                         self.window.input_info,
                     ):
-                        self.assertGreaterEqual(
-                            label.height(), label.heightForWidth(label.width())
-                        )
+                        self.assertGreaterEqual(label.height(), label.heightForWidth(label.width()))
                     for preceding, following in (
                         (self.window.clear_truth_button, self.window.photons),
                         (self.window.photons, self.window.seed),
                         (self.window.simulate_button, self.window.image_information),
                         (self.window.input_info, self.window.truth_info),
                     ):
-                        self.assertLess(
-                            preceding.geometry().bottom(), following.geometry().top()
-                        )
+                        self.assertLess(preceding.geometry().bottom(), following.geometry().top())
                     self.window.sample_button.click()
                     for _ in range(10):
                         self.app.processEvents()
                     self.assertFalse(self.window.simulate_button.isEnabled())
                     self.assertLessEqual(
                         self.window.truth_info.minimumHeight(),
-                        self.window.truth_info.heightForWidth(
-                            self.window.truth_info.width()
-                        ),
+                        self.window.truth_info.heightForWidth(self.window.truth_info.width()),
                     )
 
     def test_source_waits_for_generation_without_discarding_history(self):
@@ -807,15 +741,9 @@ class DesktopTests(unittest.TestCase):
                 self.window.input_display.currentWidget(),
                 self.window.observation_prompt,
             )
-            self.assertTrue(
-                self.window.input_display.rect().contains(
-                    self.window.observation_prompt.geometry()
-                )
-            )
+            self.assertTrue(self.window.input_display.rect().contains(self.window.observation_prompt.geometry()))
             np.testing.assert_array_equal(self.window.truth_view.array, source.pixels)
-            self.assertIn(
-                "Source file: clean source.tif", self.window.input_info.text()
-            )
+            self.assertIn("Source file: clean source.tif", self.window.input_info.text())
             self.assertFalse(self.window.run_button.isEnabled())
             self.assertFalse(self.window.compare_button.isEnabled())
             self.assertFalse(self.window.save_button.isEnabled())
@@ -823,9 +751,7 @@ class DesktopTests(unittest.TestCase):
 
             self.window.select_history(0)
             self.assertFalse(self.window.observation_prompt.isVisible())
-            np.testing.assert_array_equal(
-                self.window.input_view.array, previous.observation.pixels
-            )
+            np.testing.assert_array_equal(self.window.input_view.array, previous.observation.pixels)
             self.window.current_button.click()
             self.assertIsNone(self.window.input_view.array)
             np.testing.assert_array_equal(self.window.truth_view.array, source.pixels)
@@ -862,13 +788,9 @@ class DesktopTests(unittest.TestCase):
             self.assertFalse(self.window.observation_prompt.isVisible())
             self.assertTrue(self.window.run_button.isEnabled())
             self.assertTrue(self.window.compare_button.isEnabled())
-            self.assertIs(
-                self.window.input_display.currentWidget(), self.window.input_view
-            )
+            self.assertIs(self.window.input_display.currentWidget(), self.window.input_view)
             np.testing.assert_array_equal(self.window.truth_view.array, source.pixels)
-            np.testing.assert_array_equal(
-                self.window.input_view.array, self.window.observation.pixels
-            )
+            np.testing.assert_array_equal(self.window.input_view.array, self.window.observation.pixels)
             observed = self.window.observation.pixels.copy()
             self.window.seed.setValue(19)
             self.window.photons.setValue(200)
@@ -886,15 +808,11 @@ class DesktopTests(unittest.TestCase):
         self.wait_for_worker()
         previous = self.window.record
         previous_psf = previous.psf.pixels.copy()
-        np.testing.assert_array_equal(
-            previous_psf, prepare_psf(original_psf.pixels, observed.pixels.shape)
-        )
+        np.testing.assert_array_equal(previous_psf, prepare_psf(original_psf.pixels, observed.pixels.shape))
 
         self.window.control_pages.setCurrentIndex(1)
         self.app.processEvents()
-        self.assertIs(
-            self.window.psf_mode.parentWidget(), self.window.control_pages.widget(1)
-        )
+        self.assertIs(self.window.psf_mode.parentWidget(), self.window.control_pages.widget(1))
         self.window.psf_mode.setCurrentText("Gaussian")
         self.window.sigma.setValue(3)
         self.window.data_range.setValue(2)
@@ -915,9 +833,7 @@ class DesktopTests(unittest.TestCase):
             self.assertIs(self.window.observation, observed)
             self.assertEqual(self.window.psf_mode.isVisible(), section == 1)
             self.assertEqual(self.window.data_range.isVisible(), section == 1)
-            np.testing.assert_array_equal(
-                self.window.current_psf().pixels, changed_psf.pixels
-            )
+            np.testing.assert_array_equal(self.window.current_psf().pixels, changed_psf.pixels)
         self.window.run_button.click()
         self.wait_for_worker()
         current = self.window.record
@@ -948,15 +864,11 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.warning.called, str(self.warning.call_args))
 
     def test_pending_source_with_imported_psf_and_observation_loading(self):
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
-        ):
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))):
             self.window.open_source()
         self.window.psf_mode.setCurrentText("Imported PSF")
         self.assertFalse(self.window.simulate_button.isEnabled())
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))
-        ):
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))):
             self.window.open_psf()
         self.assertTrue(self.window.simulate_button.isEnabled())
         self.assertFalse(self.window.run_button.isEnabled())
@@ -965,9 +877,7 @@ class DesktopTests(unittest.TestCase):
         self.assertTrue(self.window.run_button.isEnabled())
         self.assertIsNotNone(self.window.observation)
 
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("bars_gt.tif"))
-        ):
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("bars_gt.tif"))):
             self.window.open_source()
         self.assertIsNone(self.window.input_view.array)
         with patch.object(self.window, "choose_image", return_value=""):
@@ -978,9 +888,7 @@ class DesktopTests(unittest.TestCase):
         self.assertIsNone(self.window.source)
         self.assertFalse(self.window.observation_prompt.isVisible())
         self.assertTrue(self.window.run_button.isEnabled())
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("bars_gt.tif"))
-        ):
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("bars_gt.tif"))):
             self.window.open_source()
         with patch.object(
             self.window,
@@ -991,9 +899,7 @@ class DesktopTests(unittest.TestCase):
         self.assertIsNone(self.window.source)
         self.assertFalse(self.window.observation_prompt.isVisible())
         self.assertTrue(self.window.run_button.isEnabled())
-        np.testing.assert_array_equal(
-            self.window.input_view.array, self.window.observation.pixels
-        )
+        np.testing.assert_array_equal(self.window.input_view.array, self.window.observation.pixels)
 
     def test_sidebar_fields_stay_inline_and_input_information_follows_actions(self):
         # Cover the startup width and the minimum supported window without
@@ -1014,11 +920,7 @@ class DesktopTests(unittest.TestCase):
                 self.window.control_pages.setCurrentIndex(section)
                 for _ in range(10):
                     self.app.processEvents()
-                page_scroll = (
-                    self.window.control_pages.widget(section)
-                    .parentWidget()
-                    .parentWidget()
-                )
+                page_scroll = self.window.control_pages.widget(section).parentWidget().parentWidget()
                 self.assertEqual(page_scroll.horizontalScrollBar().maximum(), 0)
                 for control, label in self.window.control_labels.items():
                     if not control.isVisible():
@@ -1027,23 +929,14 @@ class DesktopTests(unittest.TestCase):
                         self.assertTrue(label.text().endswith(":"))
                         self.assertFalse(label.wordWrap())
                         self.assertLessEqual(
-                            abs(
-                                label.geometry().center().y()
-                                - control.geometry().center().y()
-                            ),
+                            abs(label.geometry().center().y() - control.geometry().center().y()),
                             1,
                         )
-                        self.assertLess(
-                            label.geometry().right(), control.geometry().left()
-                        )
-                        viewport = self.window.control_pages.widget(
-                            section
-                        ).parentWidget()
+                        self.assertLess(label.geometry().right(), control.geometry().left())
+                        viewport = self.window.control_pages.widget(section).parentWidget()
                         position = control.mapTo(viewport, QPoint())
                         self.assertGreaterEqual(position.x(), 0)
-                        self.assertLessEqual(
-                            position.x() + control.width(), viewport.width()
-                        )
+                        self.assertLessEqual(position.x() + control.width(), viewport.width())
                 for control in (
                     self.window.psf_mode,
                     self.window.psf_file,
@@ -1053,19 +946,14 @@ class DesktopTests(unittest.TestCase):
                     self.assertEqual(control.isVisible(), section == 1)
                     self.assertIs(
                         control.parentWidget(),
-                        self.window.control_pages.widget(section)
-                        if section == 1
-                        else self.window.psf_parking,
+                        self.window.control_pages.widget(section) if section == 1 else self.window.psf_parking,
                     )
                 if section == 1:
                     for index in range(self.window.method.count()):
                         self.window.method.setCurrentIndex(index)
                         self.assertGreaterEqual(
                             self.window.method.width(),
-                            self.window.method.fontMetrics().horizontalAdvance(
-                                self.window.method.currentText()
-                            )
-                            + 20,
+                            self.window.method.fontMetrics().horizontalAdvance(self.window.method.currentText()) + 20,
                         )
                     layout = self.window.control_pages.widget(section).layout()
                     for row, control in enumerate(
@@ -1104,21 +992,13 @@ class DesktopTests(unittest.TestCase):
                 self.window.image_information,
             ]
             for preceding, following in pairwise(ordered):
-                self.assertLess(
-                    preceding.geometry().bottom(), following.geometry().top()
-                )
-            self.assertIn(
-                "File: cells_s2_p200_r0_input.tif", self.window.input_info.text()
-            )
+                self.assertLess(preceding.geometry().bottom(), following.geometry().top())
+            self.assertIn("File: cells_s2_p200_r0_input.tif", self.window.input_info.text())
             self.assertIn("Size: 256 × 256 px", self.window.input_info.text())
             self.assertIn("Pixel values:", self.window.input_info.text())
             self.assertNotIn("Set intensity L", self.window.input_info.text())
-            self.assertIs(
-                self.window.input_info.parentWidget(), self.window.image_information
-            )
-            self.assertIs(
-                self.window.truth_info.parentWidget(), self.window.image_information
-            )
+            self.assertIs(self.window.input_info.parentWidget(), self.window.image_information)
+            self.assertIs(self.window.truth_info.parentWidget(), self.window.image_information)
 
     def test_inspector_quality_fit_and_reference_keyboard_selection(self):
         self.window.load_sample()
@@ -1127,9 +1007,7 @@ class DesktopTests(unittest.TestCase):
         panel = self.window.inspector
         for index in range(panel.phase.count()):
             panel.phase.setCurrentIndex(index)
-            self.assertIn(
-                "Quality of updated x(k+1), iteration 1", panel.range_info.text()
-            )
+            self.assertIn("Quality of updated x(k+1), iteration 1", panel.range_info.text())
         self.window.tabs.setCurrentIndex(1)
         self.app.processEvents()
         panel.view._auto_fit = False
@@ -1196,9 +1074,7 @@ class DesktopTests(unittest.TestCase):
                 if points == 9 and width == 2400:
                     self.assertEqual(sum(before), table.viewport().width())
                 for i, size in enumerate(before):
-                    self.assertGreaterEqual(
-                        size, metrics.horizontalAdvance(table.HEADINGS[i]) + 24
-                    )
+                    self.assertGreaterEqual(size, metrics.horizontalAdvance(table.HEADINGS[i]) + 24)
                     self.assertFalse(table.isColumnHidden(i))
                 for _ in range(2):
                     panel.accept_rows(rows)
@@ -1208,12 +1084,8 @@ class DesktopTests(unittest.TestCase):
                         table.selectRow(index)
                         self.assertFalse(table.horizontalHeader().font().bold())
                         self.assertFalse(table.horizontalHeader().highlightSections())
-                        self.assertEqual(
-                            table.horizontalHeader().font().pointSize(), points
-                        )
-                        self.assertEqual(
-                            table.item(index, 2).text(), f"{result['max_abs']:.9g}"
-                        )
+                        self.assertEqual(table.horizontalHeader().font().pointSize(), points)
+                        self.assertEqual(table.item(index, 2).text(), f"{result['max_abs']:.9g}")
                         self.assertEqual(
                             table.item(index, 3).text(),
                             f"{result['record'].quality['psnr']:.9g}",
@@ -1229,14 +1101,9 @@ class DesktopTests(unittest.TestCase):
                         for column in range(6):
                             self.assertGreaterEqual(
                                 table.columnWidth(column),
-                                table.fontMetrics().horizontalAdvance(
-                                    table.item(index, column).text()
-                                )
-                                + 16,
+                                table.fontMetrics().horizontalAdvance(table.item(index, column).text()) + 16,
                             )
-                        np.testing.assert_array_equal(
-                            panel.diff_view.array, result["difference"]
-                        )
+                        np.testing.assert_array_equal(panel.diff_view.array, result["difference"])
                 if sum(before) > table.viewport().width():
                     self.assertGreater(table.horizontalScrollBar().maximum(), 0)
 
@@ -1251,9 +1118,7 @@ class DesktopTests(unittest.TestCase):
             report = index >= 3
             self.assertEqual(
                 self.window.saved_example.itemText(index),
-                f"{name.title()} — Report — P=200"
-                if report
-                else f"{name.title()} — reference",
+                f"{name.title()} — Report — P=200" if report else f"{name.title()} — reference",
             )
             self.window.threshold.setValue(0.03)
             self.window.regularization.setValue(0.02)
@@ -1325,14 +1190,10 @@ class DesktopTests(unittest.TestCase):
         pixels = previous.output.copy()
         self.window.saved_example.setFocus()
         QTest.keyClick(self.window.saved_example, Qt.Key.Key_End)
-        self.assertEqual(
-            self.window.saved_example.currentText(), "Fibers — Report — P=200"
-        )
+        self.assertEqual(self.window.saved_example.currentText(), "Fibers — Report — P=200")
         QTest.keyClick(self.window.saved_example, Qt.Key.Key_Up)
         QTest.keyClick(self.window.saved_example, Qt.Key.Key_Up)
-        self.assertEqual(
-            self.window.saved_example.currentText(), "Cells — Report — P=200"
-        )
+        self.assertEqual(self.window.saved_example.currentText(), "Cells — Report — P=200")
         QTest.mouseClick(self.window.sample_button, Qt.MouseButton.LeftButton)
         self.assertEqual(self.window.history, [previous])
         self.assertIsNone(self.window.record)
@@ -1352,15 +1213,11 @@ class DesktopTests(unittest.TestCase):
             self.assertEqual(record.config.iterations, 2)
             self.assertEqual(record.config.threshold, 0.3)
             self.assertAlmostEqual(record.quality["psnr"], expected, places=5)
-            np.testing.assert_array_equal(
-                record.observation.pixels, previous.observation.pixels
-            )
+            np.testing.assert_array_equal(record.observation.pixels, previous.observation.pixels)
         report_runs = self.window.history[-3:].copy()
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
             for saved in report_runs:
-                row = next(
-                    i for i, run in enumerate(self.window.history) if run is saved
-                )
+                row = next(i for i, run in enumerate(self.window.history) if run is saved)
                 self.window.select_history(row)
                 # Export must use the selected run even after editing the next run.
                 self.window.threshold.setValue(0.07)
@@ -1388,9 +1245,7 @@ class DesktopTests(unittest.TestCase):
                 np.testing.assert_array_equal(self.window.record.output, saved.output)
                 self.assertEqual(self.window.record.quality, saved.quality)
                 self.assertEqual(self.window.record.curve, saved.curve)
-                self.assertEqual(
-                    bool(self.window.record.steps), saved.config.method == "RL"
-                )
+                self.assertEqual(bool(self.window.record.steps), saved.config.method == "RL")
                 self.assertIs(self.window.inspector.record, self.window.record)
                 self.assertEqual(self.window.tabs.currentIndex(), 0)
                 self.assertEqual(self.window.active_slot, 0)
@@ -1423,26 +1278,20 @@ class DesktopTests(unittest.TestCase):
         self.assertTrue(field.isEnabled())
         self.assertTrue(label.isEnabled())
         self.assertFalse(self.window.run_button.isEnabled())
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))
-        ) as choose:
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))) as choose:
             QTest.mouseClick(field, Qt.MouseButton.LeftButton)
             choose.assert_called_once_with("Open centered PSF")
         selected = self.window.imported_psf
         self.assertEqual(field.text(), "psf_s2.tif")
         self.assertTrue(field.isReadOnly())
         self.window.sigma.setValue(3)
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
-        ):
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))):
             self.window.open_source()
         for section in (1, 0):
             self.window.control_pages.setCurrentIndex(section)
             self.app.processEvents()
             for key in (Qt.Key.Key_Return, Qt.Key.Key_Space):
-                with patch.object(
-                    self.window, "choose_image", return_value=""
-                ) as choose:
+                with patch.object(self.window, "choose_image", return_value="") as choose:
                     field.setFocus()
                     QTest.keyClick(field, key)
                     choose.assert_called_once()
@@ -1492,14 +1341,10 @@ class DesktopTests(unittest.TestCase):
                 self.assertEqual(self.window.current_config(), record.config)
                 self.assertEqual(self.window.method.currentData(), code)
                 np.testing.assert_array_equal(self.window.record.output, record.output)
-                self.assertEqual(
-                    self.window.inspector.phase.count(), 5 if code == "RL" else 0
-                )
+                self.assertEqual(self.window.inspector.phase.count(), 5 if code == "RL" else 0)
                 self.window.run_button.click()
                 self.wait_for_worker()
-                np.testing.assert_allclose(
-                    self.window.record.output, record.output, rtol=0, atol=1e-12
-                )
+                np.testing.assert_allclose(self.window.record.output, record.output, rtol=0, atol=1e-12)
         self.assertFalse(self.warning.called, str(self.warning.call_args))
 
     def test_reopen_selected_history_no_execution_and_invalid_bundle_keeps_workspace(
@@ -1537,9 +1382,7 @@ class DesktopTests(unittest.TestCase):
             self.assertTrue(any(run is existing for run in w.history))
             np.testing.assert_array_equal(reopened.output, original.output)
             for iteration, phases in original.steps.items():
-                w.inspector.iteration.setCurrentIndex(
-                    w.inspector.iteration.findData(iteration)
-                )
+                w.inspector.iteration.setCurrentIndex(w.inspector.iteration.findData(iteration))
                 for phase, array in phases.items():
                     w.inspector.phase.setCurrentText(phase)
                     np.testing.assert_array_equal(w.inspector.view.array, array)
@@ -1629,17 +1472,13 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.warning.called, str(self.warning.call_args))
 
     def test_generate_preserves_source_pixels_and_render_for_all_parameters(self):
-        with patch.object(
-            self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))
-        ):
+        with patch.object(self.window, "choose_image", return_value=str(sample_path("cells_gt.tif"))):
             self.window.open_source()
         source = self.window.source
         original = source.pixels.copy()
 
         def import_psf():
-            with patch.object(
-                self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))
-            ):
+            with patch.object(self.window, "choose_image", return_value=str(sample_path("psf_s2.tif"))):
                 self.window.open_psf()
 
         for name, change in [
@@ -1667,9 +1506,7 @@ class DesktopTests(unittest.TestCase):
                 )
                 self.window.simulate_button.click()
                 self.wait_for_worker()
-                self.assertEqual(
-                    (self.window.low.value(), self.window.high.value()), limits
-                )
+                self.assertEqual((self.window.low.value(), self.window.high.value()), limits)
                 self.assertIs(self.window.source, source)
                 self.assertIs(self.window.ground_truth, source)
                 np.testing.assert_array_equal(self.window.source.pixels, original)
@@ -1679,25 +1516,15 @@ class DesktopTests(unittest.TestCase):
                     rendered,
                 )
                 if observation is not None:
-                    self.assertFalse(
-                        np.array_equal(
-                            observation.pixels, self.window.observation.pixels
-                        )
-                    )
+                    self.assertFalse(np.array_equal(observation.pixels, self.window.observation.pixels))
                 self.assertEqual(
                     self.window.degradation["data_range"],
                     self.window.data_range.value(),
                 )
-                self.assertEqual(
-                    self.window.degradation["seed"], self.window.seed.value()
-                )
-                self.assertEqual(
-                    self.window.degradation["photons"], self.window.photons.value()
-                )
+                self.assertEqual(self.window.degradation["seed"], self.window.seed.value())
+                self.assertEqual(self.window.degradation["photons"], self.window.photons.value())
                 low, high = limits
-                y, x = np.unravel_index(
-                    np.argmax(self.window.observation.pixels), original.shape
-                )
+                y, x = np.unravel_index(np.argmax(self.window.observation.pixels), original.shape)
                 expected = int(
                     np.clip(
                         (self.window.observation.pixels[y, x] - low) / (high - low),
@@ -1731,9 +1558,7 @@ class DesktopTests(unittest.TestCase):
         self.window.load_sample()
         self.window.compare_methods()
         self.wait_for_worker()
-        self.assertEqual(
-            [r.config.method for r in self.window.slot_records], ["IF", "TRIF", "RL"]
-        )
+        self.assertEqual([r.config.method for r in self.window.slot_records], ["IF", "TRIF", "RL"])
         self.window.select_slot(2)
         record = self.window.record
         self.assertIsNotNone(self.window.other_view.array)

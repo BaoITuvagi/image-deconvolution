@@ -87,15 +87,11 @@ class MainWindow(QMainWindow):
         self.record_revisions = {}
         self.controls = QWidget()
         self.form = QFormLayout(self.controls)
-        self.form.setFieldGrowthPolicy(
-            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-        )
+        self.form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self.policy = QComboBox()
         self.policy.addItem("Preserve values", "preserve")
-        self.policy.addItem(
-            "Normalize unsigned integers to [0, 1]", "normalize_integer"
-        )
+        self.policy.addItem("Normalize unsigned integers to [0, 1]", "normalize_integer")
         self.form.addRow("Loading policy", self.policy)
         self.load_button = self.button("Open degraded image…", self.open_observation)
         self.form.addRow(self.load_button)
@@ -170,9 +166,7 @@ class MainWindow(QMainWindow):
         images.setRowStretch(1, 0)
         self.image_layout = images
         self.input_view = ImageView()
-        self.observation_prompt = QLabel(
-            "Generate degradation to create an observation."
-        )
+        self.observation_prompt = QLabel("Generate degradation to create an observation.")
         self.observation_prompt.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.observation_prompt.setWordWrap(True)
         self.input_display = QStackedWidget()
@@ -231,9 +225,7 @@ class MainWindow(QMainWindow):
         workspace_layout.setContentsMargins(0, 0, 0, 0)
         workspace_layout.setSpacing(4)
         context = QHBoxLayout()
-        self.current_button = self.button(
-            "View current inputs", self.show_current_inputs
-        )
+        self.current_button = self.button("View current inputs", self.show_current_inputs)
         self.current_button.setEnabled(False)
         self.baseline = BaselineSummary()
         context.addWidget(self.baseline, 1)
@@ -254,41 +246,30 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         self.menuBar().addMenu("File").addAction(exit_action)
         for control in [self.psf_mode, self.sigma, self.iterations, self.epsilon]:
-            signal = (
-                control.currentIndexChanged
-                if isinstance(control, QComboBox)
-                else control.valueChanged
-            )
+            signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self.mark_changed)
         self.setup_experiments()
         self.reference_panel = ReferencePanel()
         self.reference_panel.verify_requested.connect(self.verify_references)
         self.tabs.addTab(self.reference_panel, "Saved references")
-        self.export_button = self.button(
-            "Export selected experiment…", self.export_experiment
-        )
+        self.export_button = self.button("Export selected experiment…", self.export_experiment)
         self.export_button.setEnabled(False)
         self.form.addRow(self.export_button)
         self.form.addRow(self.button("Reopen experiment JSON…", self.open_experiment))
         field_labels = {
             item.widget()
             for row in range(self.form.rowCount())
-            if (item := self.form.itemAt(row, QFormLayout.ItemRole.LabelRole))
-            is not None
+            if (item := self.form.itemAt(row, QFormLayout.ItemRole.LabelRole)) is not None
         }
         for label in self.controls.findChildren(QLabel):
             label.setWordWrap(label not in field_labels)
             policy = label.sizePolicy()
             policy.setHorizontalPolicy(
-                QSizePolicy.Policy.Preferred
-                if label in field_labels
-                else QSizePolicy.Policy.Ignored
+                QSizePolicy.Policy.Preferred if label in field_labels else QSizePolicy.Policy.Ignored
             )
             label.setSizePolicy(policy)
         for combo in self.controls.findChildren(QComboBox):
-            combo.setSizeAdjustPolicy(
-                QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
-            )
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
             combo.setMinimumContentsLength(10)
         for combo in self.controls.findChildren(QComboBox):
             combo.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
@@ -396,22 +377,16 @@ class MainWindow(QMainWindow):
         rows["image_information"] = (None, self.image_information)
 
         def add_rows(layout, keys):
-            layout.setFieldGrowthPolicy(
-                QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
-            )
+            layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
             layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
             for key in keys:
                 label, widget = rows.pop(key)
-                layout.addRow(label, widget) if label is not None else layout.addRow(
-                    widget
-                )
+                layout.addRow(label, widget) if label is not None else layout.addRow(widget)
                 if label is not None:
                     label.setText(label.text().rstrip(":") + ":")
                     self.control_labels[widget] = label
 
-        self.psf_rows = [
-            rows.pop(key) for key in ["psf_mode", "psf_file", "sigma", "data_range"]
-        ]
+        self.psf_rows = [rows.pop(key) for key in ["psf_mode", "psf_file", "sigma", "data_range"]]
         self.psf_parking = QWidget(self.controls)
         self.psf_parking.hide()
         for label, widget in self.psf_rows:
@@ -459,23 +434,17 @@ class MainWindow(QMainWindow):
         self.method.initStyleOption(option)
         metrics = self.method.fontMetrics()
         text_size = QSize(
-            max(
-                metrics.horizontalAdvance(self.method.itemText(i))
-                for i in range(self.method.count())
-            ),
+            max(metrics.horizontalAdvance(self.method.itemText(i)) for i in range(self.method.count())),
             metrics.height(),
         )
         self.method.setMinimumWidth(
             self.method.style()
-            .sizeFromContents(
-                QStyle.ContentsType.CT_ComboBox, option, text_size, self.method
-            )
+            .sizeFromContents(QStyle.ContentsType.CT_ComboBox, option, text_size, self.method)
             .width()
         )
         margins = self.form.contentsMargins()
         minimum = max(
-            self.control_pages.widget(i).layout().minimumSize().width()
-            for i in range(self.control_pages.count())
+            self.control_pages.widget(i).layout().minimumSize().width() for i in range(self.control_pages.count())
         )
         self.sidebar_scroll.setMinimumWidth(
             max(
@@ -497,12 +466,8 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, self.update_sidebar_width)
 
     def setup_experiments(self):
-        self.form.insertRow(
-            3, self.button("Open source for simulation…", self.open_source)
-        )
-        self.form.insertRow(
-            4, self.button("Open optional ground truth…", self.open_truth)
-        )
+        self.form.insertRow(3, self.button("Open source for simulation…", self.open_source))
+        self.form.insertRow(4, self.button("Open optional ground truth…", self.open_truth))
         self.clear_truth_button = self.button("Clear ground truth", self.clear_truth)
         self.form.insertRow(5, self.clear_truth_button)
         self.truth_info = WrappedLabel("No ground truth: quality metrics unavailable.")
@@ -515,9 +480,7 @@ class MainWindow(QMainWindow):
         self.form.addRow("Poisson photon level", self.photons)
         self.form.addRow("Noise seed", self.seed)
         self.form.addRow("Intensity range L", self.data_range)
-        self.simulate_button = self.button(
-            "Generate / regenerate degradation", self.simulate
-        )
+        self.simulate_button = self.button("Generate / regenerate degradation", self.simulate)
         self.form.addRow(self.simulate_button)
         self.method = QComboBox()
         for code, name in [
@@ -539,16 +502,12 @@ class MainWindow(QMainWindow):
         self.form.addRow("IF OTF threshold", self.threshold)
         self.form.addRow("TRIF lambda (L = I)", self.regularization)
         self.form.addRow(self.capture)
-        self.compare_button = self.button(
-            "Compare IF, TRIF, and RL", self.compare_methods
-        )
+        self.compare_button = self.button("Compare IF, TRIF, and RL", self.compare_methods)
         self.compare_button.setToolTip(
             "Uses each method's retained parameters. Select IF, TRIF, or RL to edit its settings before comparison."
         )
         self.form.addRow(self.compare_button)
-        self.clear_history_button = self.button(
-            "Clear run history", self.request_clear_history
-        )
+        self.clear_history_button = self.button("Clear run history", self.request_clear_history)
         self.form.addRow(self.clear_history_button)
         self.run_button.setText("Run selected method")
         for control in [
@@ -557,11 +516,7 @@ class MainWindow(QMainWindow):
             self.regularization,
             self.data_range,
         ]:
-            signal = (
-                control.currentIndexChanged
-                if isinstance(control, QComboBox)
-                else control.valueChanged
-            )
+            signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self.mark_changed)
         self.capture.toggled.connect(self.mark_changed)
 
@@ -601,9 +556,7 @@ class MainWindow(QMainWindow):
         if self.record is None:
             self.error("Select a restoration run first.")
             return
-        parent = QFileDialog.getExistingDirectory(
-            self, "Choose parent folder for the new experiment"
-        )
+        parent = QFileDialog.getExistingDirectory(self, "Choose parent folder for the new experiment")
         if not parent:
             return
         name, accepted = QInputDialog.getText(
@@ -625,15 +578,11 @@ class MainWindow(QMainWindow):
                 or any(c in name for c in '<>:"/\\|?*')
                 or any(ord(c) < 32 for c in name)
             ):
-                self.error(
-                    "Enter a single valid new folder name, without path separators or reserved characters."
-                )
+                self.error("Enter a single valid new folder name, without path separators or reserved characters.")
                 return
             destination = Path(parent) / name
             record = self.record
-            self.start_operation(
-                lambda: export_bundle(destination, record), self.export_finished
-            )
+            self.start_operation(lambda: export_bundle(destination, record), self.export_finished)
 
     def export_finished(self, path):
         self.completion_message = f"Experiment saved: {path}"
@@ -641,9 +590,7 @@ class MainWindow(QMainWindow):
     def open_experiment(self):
         if self.worker is not None:
             return
-        path = QFileDialog.getOpenFileName(
-            self, "Reopen saved experiment", "", "Experiment JSON (*.json)"
-        )[0]
+        path = QFileDialog.getOpenFileName(self, "Reopen saved experiment", "", "Experiment JSON (*.json)")[0]
         if not path:
             return
         overrides = {}
@@ -656,9 +603,7 @@ class MainWindow(QMainWindow):
                 return exc
 
         def locate(missing):
-            located = QFileDialog.getOpenFileName(
-                self, str(missing), "", "Exact numerical input (*.npy)"
-            )[0]
+            located = QFileDialog.getOpenFileName(self, str(missing), "", "Exact numerical input (*.npy)")[0]
             if located:
                 overrides[missing.role] = located
                 self.start_operation(load, accept)
@@ -678,16 +623,9 @@ class MainWindow(QMainWindow):
             ]:
                 value = getattr(config, name)
                 if not control.minimum() <= value <= control.maximum():
-                    raise ValueError(
-                        f"The saved {name} exceeds this version's control limits."
-                    )
-                if (
-                    isinstance(control, QDoubleSpinBox)
-                    and round(value, control.decimals()) != value
-                ):
-                    raise ValueError(
-                        f"The saved {name} requires more precision than these controls support."
-                    )
+                    raise ValueError(f"The saved {name} exceeds this version's control limits.")
+                if isinstance(control, QDoubleSpinBox) and round(value, control.decimals()) != value:
+                    raise ValueError(f"The saved {name} requires more precision than these controls support.")
             slots = self.slot_records.copy()
             self.set_observation(record.observation, (0, config.data_range))
             self.imported_psf = record.psf
@@ -714,9 +652,7 @@ class MainWindow(QMainWindow):
             self.accept_record(record, slot)
             self.tabs.setCurrentIndex(0)
             self.control_pages.setCurrentIndex(1)
-            self.completion_message = (
-                "Saved experiment reopened. No restoration was executed."
-            )
+            self.completion_message = "Saved experiment reopened. No restoration was executed."
 
         self.start_operation(load, accept)
 
@@ -820,10 +756,7 @@ class MainWindow(QMainWindow):
 
     def accept_many(self, records, selected_slot=None):
         self.store_records(records)
-        self.slot_records = [
-            run if any(run is entry for entry in self.history) else None
-            for run in records
-        ]
+        self.slot_records = [run if any(run is entry for entry in self.history) else None for run in records]
         self.active_slot = self.active_slot if selected_slot is None else selected_slot
         self.view_record = next(run for run in self.slot_records if run is not None)
         self.results_visible = True
@@ -878,8 +811,7 @@ class MainWindow(QMainWindow):
     def place_record(self, record, slot):
         # Keep the observation and ground truth consistent across visible outputs.
         self.slot_records = [
-            run if run is None or self.same_context(run, record) else None
-            for run in self.slot_records
+            run if run is None or self.same_context(run, record) else None for run in self.slot_records
         ]
         self.slot_records[slot] = record
         self.active_slot = slot
@@ -906,9 +838,7 @@ class MainWindow(QMainWindow):
         QMessageBox.warning(self, "Cannot complete operation", str(message))
 
     def choose_image(self, title):
-        return QFileDialog.getOpenFileName(
-            self, title, "", "Grayscale images (*.tif *.tiff *.png)"
-        )[0]
+        return QFileDialog.getOpenFileName(self, title, "", "Grayscale images (*.tif *.tiff *.png)")[0]
 
     def open_observation(self):
         path = self.choose_image("Open degraded image")
@@ -942,26 +872,18 @@ class MainWindow(QMainWindow):
         self.low.setValue(display_range[0])
         self.high.setValue(display_range[1])
         if self.high.value() <= self.low.value():
-            self.high.setValue(
-                self.low.value() + max(1e-6, abs(self.low.value()) * 1e-6)
-            )
+            self.high.setValue(self.low.value() + max(1e-6, abs(self.low.value()) * 1e-6))
         scale_note = (
             f"\nImage scale: [0, {image.nominal_range:g}]"
             if image.nominal_range is not None
             else f"\nDisplay range on load: [{self.low.value():g}, {self.high.value():g}]"
         )
-        role = (
-            "Source file"
-            if self.source is image and self.observation is None
-            else "File"
-        )
+        role = "Source file" if self.source is image and self.observation is None else "File"
         self.input_info.setText(
             f"{role}: {Path(image.source).name}\nSize: {a.shape[1]} × {a.shape[0]} px\nPixel values: {a.min():.5g} to {a.max():.5g}"
             + scale_note
         )
-        self.input_info.setToolTip(
-            f"Loading policy: {image.policy}. Processing uses float64 numerical pixels."
-        )
+        self.input_info.setToolTip(f"Loading policy: {image.policy}. Processing uses float64 numerical pixels.")
 
     def open_psf(self):
         path = self.choose_image("Open centered PSF")
@@ -1092,14 +1014,10 @@ class MainWindow(QMainWindow):
         self.completion_message = "Ready."
         if hasattr(self, "reference_panel"):
             self.reference_panel.setEnabled(False)
-        self.statusBar().showMessage(
-            "Processing… You can inspect the views while the worker runs."
-        )
+        self.statusBar().showMessage("Processing… You can inspect the views while the worker runs.")
         self.worker = ProcessingThread(operation, self)
         self.pending_accept = accept
-        self.worker.result.connect(
-            self.receive_result, Qt.ConnectionType.QueuedConnection
-        )
+        self.worker.result.connect(self.receive_result, Qt.ConnectionType.QueuedConnection)
         self.worker.failed.connect(self.operation_failed)
         self.worker.finished.connect(self.worker_finished)
         self.worker.start()
@@ -1150,15 +1068,11 @@ class MainWindow(QMainWindow):
                 for r in self.history
             )
 
-        while len(self.history) > 8 or (
-            len(self.history) > 1 and stored_bytes() > 256 * 1024 * 1024
-        ):
+        while len(self.history) > 8 or (len(self.history) > 1 and stored_bytes() > 256 * 1024 * 1024):
             dropped = self.history.pop(0)
             self.record_revisions.pop(id(dropped), None)
             self.run_ids.pop(id(dropped), None)
-            self.slot_records = [
-                None if run is dropped else run for run in self.slot_records
-            ]
+            self.slot_records = [None if run is dropped else run for run in self.slot_records]
         self.table.blockSignals(True)
         self.table.setRowCount(len(self.history))
         for row, run in enumerate(self.history):
@@ -1176,10 +1090,7 @@ class MainWindow(QMainWindow):
                 parameters,
                 f"{run.seconds:.4g}",
             ]
-            values += [
-                "N/A" if run.quality is None else f"{run.quality[key]:.5g}"
-                for key in ["mse", "psnr", "ssim"]
-            ]
+            values += ["N/A" if run.quality is None else f"{run.quality[key]:.5g}" for key in ["mse", "psnr", "ssim"]]
             values += ["N/A" if run.psnr_change is None else f"{run.psnr_change:+.3f}"]
             values += [
                 "Saved experiment"
@@ -1225,8 +1136,7 @@ class MainWindow(QMainWindow):
     def same_context(cls, first, second):
         a, b = first.ground_truth, second.ground_truth
         return cls.same_observation(first, second) and (
-            a is b
-            or (a is not None and b is not None and np.array_equal(a.pixels, b.pixels))
+            a is b or (a is not None and b is not None and np.array_equal(a.pixels, b.pixels))
         )
 
     @staticmethod
@@ -1245,9 +1155,7 @@ class MainWindow(QMainWindow):
                 f"Input quality for run {self.run_ids[id(record)]}; intensity L={record.config.data_range:g}.",
             )
         else:
-            self.baseline.measure_current(
-                self.observation, self.ground_truth, self.data_range.value()
-            )
+            self.baseline.measure_current(self.observation, self.ground_truth, self.data_range.value())
 
     def refresh_views(self):
         self.update_baseline()
@@ -1268,27 +1176,17 @@ class MainWindow(QMainWindow):
             if context is None and self.source is not None and observation is None
             else self.input_view
         )
-        self.truth_view.set_image(
-            None if truth is None else truth.pixels, self.low.value(), self.high.value()
-        )
+        self.truth_view.set_image(None if truth is None else truth.pixels, self.low.value(), self.high.value())
         self.image_boxes[0].setTitle(
-            "Current observation"
-            if context is None
-            else f"Observation: {Path(observation.source).name}"
+            "Current observation" if context is None else f"Observation: {Path(observation.source).name}"
         )
         self.image_boxes[1].setTitle(
-            "Current ground truth"
-            if context is None
-            else "Ground truth for displayed results"
+            "Current ground truth" if context is None else "Ground truth for displayed results"
         )
-        for index, (box, view, run) in enumerate(
-            zip(self.image_boxes[2:], self.views[2:], self.slot_records)
-        ):
+        for index, (box, view, run) in enumerate(zip(self.image_boxes[2:], self.views[2:], self.slot_records)):
             box.setVisible(self.results_visible)
             box.set_active(index == self.active_slot)
-            view.set_image(
-                None if run is None else run.output, self.low.value(), self.high.value()
-            )
+            view.set_image(None if run is None else run.output, self.low.value(), self.high.value())
             box.set_result_title(
                 f"Result {index + 1}"
                 if run is None
@@ -1308,23 +1206,19 @@ class MainWindow(QMainWindow):
         if self.record is None:
             self.error("Run a restoration first.")
             return
-        path = QFileDialog.getSaveFileName(
-            self, "Save numerical output", "restored.tif", "Float TIFF (*.tif *.tiff)"
-        )[0]
+        path = QFileDialog.getSaveFileName(self, "Save numerical output", "restored.tif", "Float TIFF (*.tif *.tiff)")[
+            0
+        ]
         if path:
             try:
                 save_tiff(path, self.record.output, overwrite=True)
-                self.statusBar().showMessage(
-                    "Saved float32 TIFF without clipping or display conversion."
-                )
+                self.statusBar().showMessage("Saved float32 TIFF without clipping or display conversion.")
             except (OSError, ValueError) as exc:
                 self.error(exc)
 
     def closeEvent(self, event):
         if self.worker is not None or self.baseline.worker is not None:
-            self.statusBar().showMessage(
-                "Wait for processing to finish before closing."
-            )
+            self.statusBar().showMessage("Wait for processing to finish before closing.")
             event.ignore()
         else:
             self.baseline.stop_pending()

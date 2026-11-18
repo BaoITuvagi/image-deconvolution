@@ -55,9 +55,7 @@ def main():
         shutil.copyfile(root / name, target)
     if (root / "docs/images/workspace.png").is_file():
         (output / "docs/images").mkdir()
-        shutil.copyfile(
-            root / "docs/images/workspace.png", output / "docs/images/workspace.png"
-        )
+        shutil.copyfile(root / "docs/images/workspace.png", output / "docs/images/workspace.png")
     licenses = output / "licenses"
     licenses.mkdir()
     for package in [
@@ -79,9 +77,7 @@ def main():
                     target = licenses / relative
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, target)
-    shutil.copyfile(
-        Path(sys.base_prefix) / "LICENSE.txt", licenses / "Python-LICENSE.txt"
-    )
+    shutil.copyfile(Path(sys.base_prefix) / "LICENSE.txt", licenses / "Python-LICENSE.txt")
     for source in (root / "third_party/licenses").glob("*.txt"):
         shutil.copyfile(source, licenses / source.name)
     for pattern in [
@@ -93,9 +89,7 @@ def main():
         "Qt6Pdf*",
     ]:
         if list(output.rglob(pattern)):
-            raise SystemExit(
-                f"Unexpected optional Qt component found ({pattern}); investigate this build."
-            )
+            raise SystemExit(f"Unexpected optional Qt component found ({pattern}); investigate this build.")
     print(f"Built local distribution: {output}")
 
 

@@ -54,20 +54,14 @@ class NumericalTests(unittest.TestCase):
         self.assertAlmostEqual(result["psnr"], 20)
 
     def test_rl_identity(self):
-        np.testing.assert_allclose(
-            rl(self.x, self.identity, 1), self.x, rtol=0, atol=1e-12
-        )
+        np.testing.assert_allclose(rl(self.x, self.identity, 1), self.x, rtol=0, atol=1e-12)
 
     def test_tikhonov_identity_regularizer(self):
-        np.testing.assert_allclose(
-            tikhonov(self.x, self.identity, 0.1), self.x / 1.1, rtol=0, atol=1e-12
-        )
+        np.testing.assert_allclose(tikhonov(self.x, self.identity, 0.1), self.x / 1.1, rtol=0, atol=1e-12)
 
     def test_inverse_threshold_includes_boundary_and_zeros_rejected_bins(self):
         H = np.full_like(self.identity, 0.25)
-        np.testing.assert_allclose(
-            inverse(self.x, H, 0.25), self.x * 4, rtol=0, atol=1e-12
-        )
+        np.testing.assert_allclose(inverse(self.x, H, 0.25), self.x * 4, rtol=0, atol=1e-12)
         np.testing.assert_array_equal(inverse(self.x, H, 0.26), np.zeros_like(self.x))
         np.testing.assert_array_equal(inverse(self.x, H * 0), np.zeros_like(self.x))
 
@@ -85,9 +79,7 @@ class NumericalTests(unittest.TestCase):
         result, history = rl(self.x, self.H, 5, checkpoints=[1, 3, 5])
         np.testing.assert_array_equal(self.x, original)
         for iteration, estimate in history.items():
-            np.testing.assert_allclose(
-                estimate, rl(self.x, self.H, iteration), rtol=0, atol=1e-12
-            )
+            np.testing.assert_allclose(estimate, rl(self.x, self.H, iteration), rtol=0, atol=1e-12)
             self.assertFalse(np.shares_memory(estimate, result))
         np.testing.assert_array_equal(result, rl(self.x, self.H, 5))
 

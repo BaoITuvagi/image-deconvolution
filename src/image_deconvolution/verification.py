@@ -44,9 +44,7 @@ def verify_desktop(destination):
 
     def wait():
         deadline = time.monotonic() + 60
-        while (
-            window.worker is not None or window.baseline.pending
-        ) and time.monotonic() < deadline:
+        while (window.worker is not None or window.baseline.pending) and time.monotonic() < deadline:
             pump(10)
         if window.worker is not None or window.baseline.pending:
             raise AssertionError("Processing or baseline worker exceeded 60 seconds.")
@@ -108,16 +106,11 @@ def verify_desktop(destination):
                 window.table.fit_columns()
                 assert header.length() >= window.table.viewport().width()
                 for column, text in enumerate(window.table.HEADINGS):
-                    assert (
-                        window.table.columnWidth(column)
-                        >= header.fontMetrics().horizontalAdvance(text) + 24
-                    )
+                    assert window.table.columnWidth(column) >= header.fontMetrics().horizontalAdvance(text) + 24
             window.setFont(original_font)
             window.resize(1280, 820)
             pump()
-            checks.append(
-                "Readable full-width normal-weight history headers at 9/12/16-point text sizes"
-            )
+            checks.append("Readable full-width normal-weight history headers at 9/12/16-point text sizes")
 
             window.control_pages.setCurrentIndex(0)
             assert window.psf_file.text() == "" and not window.psf_file.isEnabled()
@@ -125,9 +118,7 @@ def verify_desktop(destination):
             for index, name in enumerate(("cells", "bars", "fibers") * 2):
                 report_preset = index >= 3
                 assert window.saved_example.itemText(index) == (
-                    f"{name.title()} — Report — P=200"
-                    if report_preset
-                    else f"{name.title()} — reference"
+                    f"{name.title()} — Report — P=200" if report_preset else f"{name.title()} — reference"
                 )
                 window.saved_example.setCurrentIndex(index)
                 window.sample_button.click()
@@ -164,10 +155,7 @@ def verify_desktop(destination):
             wait()
             assert window.observation.pixels.shape == (256, 256)
             assert all(not box.isVisible() for box in window.image_boxes[2:])
-            assert (
-                window.input_view.height()
-                > 0.7 * window.image_layout.geometry().height()
-            )
+            assert window.input_view.height() > 0.7 * window.image_layout.geometry().height()
             assert window.grab().save(str(root / "loaded.png"))
             assert window.control_pages.currentIndex() == 0
             selector = window.saved_example.geometry()
@@ -185,31 +173,19 @@ def verify_desktop(destination):
                 ):
                     assert control.isVisible() == (section == 1)
                     assert control.parentWidget() is (
-                        window.control_pages.widget(section)
-                        if section == 1
-                        else window.psf_parking
+                        window.control_pages.widget(section) if section == 1 else window.psf_parking
                     )
                 if section == 1:
                     layout = window.control_pages.widget(section).layout()
                     start = layout.getWidgetPosition(window.psf_mode)[0]
-                    assert start == (
-                        layout.getWidgetPosition(window.seed)[0] + 1
-                        if section == 0
-                        else 0
-                    )
+                    assert start == (layout.getWidgetPosition(window.seed)[0] + 1 if section == 0 else 0)
                     assert layout.getWidgetPosition(window.data_range)[0] == start + 3
                     assert layout.getWidgetPosition(window.psf_file)[0] == start + 1
                     assert layout.getWidgetPosition(window.sigma)[0] == start + 2
                 for control, label in window.control_labels.items():
                     if control.isVisible():
                         assert label.text().endswith(":") and not label.wordWrap()
-                        assert (
-                            abs(
-                                label.geometry().center().y()
-                                - control.geometry().center().y()
-                            )
-                            <= 1
-                        )
+                        assert abs(label.geometry().center().y() - control.geometry().center().y()) <= 1
             window.control_pages.setCurrentIndex(1)
             window.run_button.click()
             assert not window.controls.isEnabled()
@@ -225,48 +201,30 @@ def verify_desktop(destination):
                 QToolTip.hideText()
                 app.sendEvent(
                     view.viewport(),
-                    QHelpEvent(
-                        QEvent.Type.ToolTip, point, view.viewport().mapToGlobal(point)
-                    ),
+                    QHelpEvent(QEvent.Type.ToolTip, point, view.viewport().mapToGlobal(point)),
                 )
                 pump()
                 assert not QToolTip.isVisible()
-            assert (
-                window.baseline.heightForWidth(window.baseline.width())
-                <= window.baseline.fontMetrics().height()
-            )
-            assert (
-                window.image_boxes[2].full_title == "1: RL: iterations=5, epsilon=1e-06"
-            )
+            assert window.baseline.heightForWidth(window.baseline.width()) <= window.baseline.fontMetrics().height()
+            assert window.image_boxes[2].full_title == "1: RL: iterations=5, epsilon=1e-06"
             assert window.image_boxes[2].layout().count() == 1
             assert window.grab().save(str(root / "first-run.png"))
             H = otf(prepare_psf(record.psf.pixels, record.observation.pixels.shape))
-            np.testing.assert_allclose(
-                record.output, rl(record.observation.pixels, H, 5), rtol=0, atol=1e-12
-            )
+            np.testing.assert_allclose(record.output, rl(record.observation.pixels, H, 5), rtol=0, atol=1e-12)
             checks.append("Saved input -> configured RL worker -> baseline agreement")
 
             original = record.output.copy()
             window.iterations.setValue(6)
-            assert (
-                window.table.item(window.table.currentRow(), 8).text()
-                == "Earlier configuration"
-            )
+            assert window.table.item(window.table.currentRow(), 8).text() == "Earlier configuration"
             window.low.setValue(-0.1)
             window.high.setValue(1.2)
             window.refresh_views()
             np.testing.assert_array_equal(record.output, original)
             output = root / "saved output.tif"
-            with patch.object(
-                QFileDialog, "getSaveFileName", return_value=(str(output), "")
-            ):
+            with patch.object(QFileDialog, "getSaveFileName", return_value=(str(output), "")):
                 window.save_button.click()
-            np.testing.assert_array_equal(
-                read_image(output).pixels, original.astype(np.float32)
-            )
-            checks.append(
-                "Historical configuration marker, display independence and UI TIFF save"
-            )
+            np.testing.assert_array_equal(read_image(output).pixels, original.astype(np.float32))
+            checks.append("Historical configuration marker, display independence and UI TIFF save")
 
             for _ in range(3):
                 window.run_button.click()
@@ -290,9 +248,7 @@ def verify_desktop(destination):
             assert window.table.currentRow() == 3
             assert window.record is window.slot_records[0]
             assert window.grab().save(str(root / "selected-slots.png"))
-            checks.append(
-                "Four repeated runs replace one slot; mouse selection routes history and new results"
-            )
+            checks.append("Four repeated runs replace one slot; mouse selection routes history and new results")
 
             window.control_pages.setCurrentIndex(0)
             with patch.object(
@@ -306,35 +262,19 @@ def verify_desktop(destination):
             assert window.baseline.text() == "Degraded input: N/A"
             assert window.psf_mode.isVisible() and window.data_range.isVisible()
             assert (
-                window.control_pages.widget(0)
-                .layout()
-                .getWidgetPosition(window.psf_mode)[0]
-                == window.control_pages.widget(0)
-                .layout()
-                .getWidgetPosition(window.seed)[0]
-                + 1
+                window.control_pages.widget(0).layout().getWidgetPosition(window.psf_mode)[0]
+                == window.control_pages.widget(0).layout().getWidgetPosition(window.seed)[0] + 1
             )
             assert "Source ground truth:" in window.truth_info.text()
             assert "Click" not in window.truth_info.text()
             assert window.observation_prompt.isVisible()
             np.testing.assert_array_equal(window.truth_view.array, window.source.pixels)
-            assert (
-                not window.run_button.isEnabled()
-                and not window.compare_button.isEnabled()
-            )
+            assert not window.run_button.isEnabled() and not window.compare_button.isEnabled()
             for label in (window.truth_info, window.input_info):
                 assert label.height() >= label.heightForWidth(label.width())
-            assert (
-                window.input_info.geometry().bottom()
-                < window.truth_info.geometry().top()
-            )
-            assert (
-                window.simulate_button.geometry().bottom()
-                < window.image_information.geometry().top()
-            )
-            checks.append(
-                "Inline sidebar fields, retained input panel and readable image information below actions"
-            )
+            assert window.input_info.geometry().bottom() < window.truth_info.geometry().top()
+            assert window.simulate_button.geometry().bottom() < window.image_information.geometry().top()
+            checks.append("Inline sidebar fields, retained input panel and readable image information below actions")
             window.psf_mode.setCurrentText("Gaussian")
             assert not window.psf_file.isEnabled() and window.sigma.isEnabled()
             assert window.psf_file.text() == "psf_s2.tif"
@@ -347,10 +287,7 @@ def verify_desktop(destination):
             wait()
             assert (window.low.value(), window.high.value()) == display_range
             np.testing.assert_array_equal(window.ground_truth.pixels, source_pixels)
-            assert (
-                window.truth_view.scene().items()[0].pixmap().toImage()
-                == source_display
-            )
+            assert window.truth_view.scene().items()[0].pixmap().toImage() == source_display
             assert window.psf_mode.isVisible()
             observed = window.observation.pixels.copy()
             assert not window.observation_prompt.isVisible()
@@ -402,17 +339,13 @@ def verify_desktop(destination):
             assert len(window.record.steps) <= 8
             curve = window.record.curve
             assert curve[-1]["psnr"] < max(row["psnr"] for row in curve)
-            window.inspector.iteration.setCurrentIndex(
-                window.inspector.iteration.count() - 1
-            )
+            window.inspector.iteration.setCurrentIndex(window.inspector.iteration.count() - 1)
             window.inspector.phase.setCurrentIndex(4)
             window.inspector.metric_choice.setCurrentText("SSIM")
             window.tabs.setCurrentIndex(1)
             pump(150)
             assert window.grab().save(str(root / "inspector.png"))
-            checks.append(
-                "Bounded RL phases and late-iteration quality loss on saved bars"
-            )
+            checks.append("Bounded RL phases and late-iteration quality loss on saved bars")
 
             window.load_research("fibers")
             window.capture.setChecked(True)
@@ -422,9 +355,7 @@ def verify_desktop(destination):
             saved = window.record
             bundle = root / "exported experiment"
             with (
-                patch.object(
-                    QFileDialog, "getExistingDirectory", return_value=str(root)
-                ),
+                patch.object(QFileDialog, "getExistingDirectory", return_value=str(root)),
                 patch.object(QInputDialog, "getText", return_value=(bundle.name, True)),
             ):
                 window.export_button.click()
@@ -449,9 +380,7 @@ def verify_desktop(destination):
             assert window.slot_records[window.active_slot] is reopened
             window.tabs.setCurrentIndex(1)
             for iteration, phases in saved.steps.items():
-                window.inspector.iteration.setCurrentIndex(
-                    window.inspector.iteration.findData(iteration)
-                )
+                window.inspector.iteration.setCurrentIndex(window.inspector.iteration.findData(iteration))
                 for phase, array in phases.items():
                     window.inspector.phase.setCurrentText(phase)
                     np.testing.assert_array_equal(window.inspector.view.array, array)
@@ -469,27 +398,19 @@ def verify_desktop(destination):
             del metadata["result"]
             legacy = bundle / "legacy.json"
             legacy.write_text(json.dumps(metadata))
-            with patch.object(
-                QFileDialog, "getOpenFileName", return_value=(str(legacy), "")
-            ):
+            with patch.object(QFileDialog, "getOpenFileName", return_value=(str(legacy), "")):
                 window.open_experiment()
             wait()
-            np.testing.assert_array_equal(
-                window.record.output, output.astype(np.float32)
-            )
+            np.testing.assert_array_equal(window.record.output, output.astype(np.float32))
             assert window.record.quality == saved.quality
             assert window.record.curve == saved.curve
             assert window.inspector.iteration.count() == 0
             assert "legacy export" in window.inspector.range_info.text()
-            checks.append(
-                "Legacy TIFF result and recorded curve reopen with an explicit missing-checkpoint message"
-            )
+            checks.append("Legacy TIFF result and recorded curve reopen with an explicit missing-checkpoint message")
             window.run_button.click()
             wait()
             np.testing.assert_allclose(window.record.output, output, rtol=0, atol=1e-12)
-            checks.append(
-                "UI bundle export -> JSON reopen -> identical rerun within 1e-12"
-            )
+            checks.append("UI bundle export -> JSON reopen -> identical rerun within 1e-12")
 
             for method, capture in [
                 ("RL", False),
@@ -505,12 +426,8 @@ def verify_desktop(destination):
                 uncaptured = window.record
                 target = root / f"saved-{method}-{capture}"
                 with (
-                    patch.object(
-                        QFileDialog, "getExistingDirectory", return_value=str(root)
-                    ),
-                    patch.object(
-                        QInputDialog, "getText", return_value=(target.name, True)
-                    ),
+                    patch.object(QFileDialog, "getExistingDirectory", return_value=str(root)),
+                    patch.object(QInputDialog, "getText", return_value=(target.name, True)),
                 ):
                     window.export_button.click()
                 wait()
@@ -560,10 +477,7 @@ def verify_desktop(destination):
                     assert header.font().pointSize() == points
                     assert header.length() >= reference_table.viewport().width()
                     for column, text in enumerate(reference_table.HEADINGS):
-                        assert (
-                            columns[column]
-                            >= header.fontMetrics().horizontalAdvance(text) + 24
-                        )
+                        assert columns[column] >= header.fontMetrics().horizontalAdvance(text) + 24
                     window.reference_panel.accept_rows(rows)
                     pump()
                     assert columns == [reference_table.columnWidth(i) for i in range(6)]
@@ -577,9 +491,7 @@ def verify_desktop(destination):
                             window.reference_panel.saved_view.array,
                             result["reference"].pixels,
                         )
-                        np.testing.assert_array_equal(
-                            window.reference_panel.diff_view.array, result["difference"]
-                        )
+                        np.testing.assert_array_equal(window.reference_panel.diff_view.array, result["difference"])
                     assert not header.font().bold()
             window.setFont(reference_font)
             window.resize(reference_size)
@@ -610,10 +522,7 @@ def verify_desktop(destination):
             report["comparison_layout"] = {
                 "window": [window.width(), window.height()],
                 "baseline_height": window.baseline.height(),
-                "viewports": [
-                    [view.viewport().width(), view.viewport().height()]
-                    for view in window.views
-                ],
+                "viewports": [[view.viewport().width(), view.viewport().height()] for view in window.views],
             }
             checks.append(
                 "Single-line baseline and inline result titles reclaim height with three aligned result viewports"
@@ -645,12 +554,8 @@ def verify_desktop(destination):
                 window.iterations.setValue(90)
                 target = root / f"report-{saved.config.method}"
                 with (
-                    patch.object(
-                        QFileDialog, "getExistingDirectory", return_value=str(root)
-                    ),
-                    patch.object(
-                        QInputDialog, "getText", return_value=(target.name, True)
-                    ),
+                    patch.object(QFileDialog, "getExistingDirectory", return_value=str(root)),
+                    patch.object(QInputDialog, "getText", return_value=(target.name, True)),
                 ):
                     window.export_button.click()
                 wait()
@@ -670,9 +575,7 @@ def verify_desktop(destination):
             window.tabs.setCurrentIndex(1)
             assert window.inspector.iteration.count() == 2
             for iteration, phases in saved.steps.items():
-                window.inspector.iteration.setCurrentIndex(
-                    window.inspector.iteration.findData(iteration)
-                )
+                window.inspector.iteration.setCurrentIndex(window.inspector.iteration.findData(iteration))
                 for phase, array in phases.items():
                     window.inspector.phase.setCurrentText(phase)
                     np.testing.assert_array_equal(window.inspector.view.array, array)
@@ -717,7 +620,5 @@ def verify_desktop(destination):
             pump()
         window.close()
         return_code = 1
-    (root / "verification.json").write_text(
-        json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8"
-    )
+    (root / "verification.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     return return_code

@@ -29,9 +29,7 @@ def quality(truth, estimate, data_range):
     return values, "Full-image metrics; PSNR range L is fixed by the run."
 
 
-def trace_rl(
-    y, H, iterations, epsilon, truth=None, data_range=1, memory_limit=64 * 1024 * 1024
-):
+def trace_rl(y, H, iterations, epsilon, truth=None, data_range=1, memory_limit=64 * 1024 * 1024):
     """Keep at most eight five-image checkpoints within a 64 MiB budget.
 
     Algorithm time excludes metric calculation and checkpoint copies. Curves use
@@ -39,9 +37,7 @@ def trace_rl(
     """
     capacity = min(8, memory_limit // (5 * y.nbytes))
     if capacity < 1:
-        raise ValueError(
-            "RL intermediate capture exceeds 64 MiB. Disable Capture RL steps for this image."
-        )
+        raise ValueError("RL intermediate capture exceeds 64 MiB. Disable Capture RL steps for this image.")
     checkpoints = set(np.linspace(1, iterations, min(capacity, iterations), dtype=int))
     measurements = set(np.linspace(1, iterations, min(32, iterations), dtype=int))
     x = y.copy()
