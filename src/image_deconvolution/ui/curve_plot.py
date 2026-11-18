@@ -70,18 +70,24 @@ class CurvePlot(QWidget):
                 f"{xmin + fraction * (xmax - xmin):.0f}",
             )
         path = QPainterPath()
+        markers = []
         for index, (x, y) in enumerate(points):
             p = QPointF(
                 plot.left() + (x - xmin) / (xmax - xmin) * plot.width(),
                 plot.bottom() - (y - ymin) / (ymax - ymin) * plot.height(),
             )
             path.moveTo(p) if index == 0 else path.lineTo(p)
-        painter.setPen(QPen(QColor("#1685b9"), 2))
+            markers.append(p)
+        curve_color = QColor("#1685b9")
+        painter.setPen(QPen(curve_color, 2))
         painter.drawPath(path)
+        painter.setBrush(curve_color)
+        for point in markers:
+            painter.drawEllipse(point, 3.5, 3.5)
         painter.setPen(color)
         painter.drawText(
             QRectF(plot.left(), self.height() - 28, plot.width(), 24),
             Qt.AlignmentFlag.AlignCenter,
-            "Iteration count (selected measurements)",
+            "Iteration",
         )
         painter.end()

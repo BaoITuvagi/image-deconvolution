@@ -10,9 +10,9 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/compact-psf/Image Deconvolution/`;
-the earlier evaluation folders are retained separately. Open
-`ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
+The updated local distribution is `dist/report-demo-alignment/Image Deconvolution/`.
+The designated experiment-reopen baseline remains at `dist/Image Deconvolution/`.
+Open `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
 This is an unsigned local evaluation build; no GitHub Release is published.
 See the [user guide](docs/user-guide.md), [release notes](docs/release-notes.md),
@@ -24,7 +24,9 @@ and [third-party notices](docs/third-party-notices.md).
    saved float TIFF input, ground truth, and the matching PSF. The Load button sits
    beside the selector; the sidebar stays on Inputs & simulation. Loading does
    not regenerate noise or run restoration. Cells, Bars, and Fibers reference
-   presets use IF 0.1, TRIF 0.1, RL 5, epsilon 1e-6, and L=1.
+   presets use IF 0.1, TRIF 0.1, RL 5, epsilon 1e-6, and L=1. Degraded-input
+   MSE/PSNR/SSIM appears on load in one compact line, without requiring a run;
+   unavailable measurements show N/A only.
    To demonstrate report Table 5.5, choose Cells — Report — P=200 instead:
    IF 0.3, TRIF 0.1, RL 2, epsilon 1e-6, and L=1. Bars and Fibers have the same
    Report preset. Reference presets retain the comparison configuration;
@@ -33,23 +35,38 @@ and [third-party notices](docs/third-party-notices.md).
    a worker and displays all three outputs. Degraded-input and restored metrics
    share one ground truth/intensity scale; PSNR change makes improvements and
    regressions explicit. The table records input identity and algorithm time.
-3. Select a history row with the mouse or arrow keys. Additional results selectors
-   above the views list matching inputs only. View current inputs returns to the
-   next run's workspace. Scroll to zoom and drag to pan the synchronized views.
-4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
-   iterations when compatible ground truth exists. Load Bars reference and change
-   RL iterations in Restoration to explore how late iterations can reduce quality.
+3. Click a result slot, then select a history row with the mouse or arrow keys
+   to place that saved run there. The first single-method run reveals three slots
+   and fills the left slot; later runs replace the selected slot. Compare fills
+   IF, TRIF, RL from left to right. The selection border identifies the run used
+   by the inspector and save/export actions. View current inputs returns to the
+   next run's workspace and current-input baseline. Run ID, method and parameters
+   share one title line. Result slots show no hover popups. Compact
+   spacing gives the aligned images more room. Scroll to zoom and drag to pan
+   the synchronized views.
+4. RL inspector displays the five update phases and plots PSNR or SSIM with dots
+   at measured iterations when compatible ground truth exists. Load Bars reference
+   and change RL iterations in Restoration to explore how late iterations can
+   reduce quality.
 5. Saved references computes six new Python comparisons against saved DL2 TIFFs.
+   Its six-column table keeps readable, normal-weight headings before and after
+   comparison, fills the available width and scrolls horizontally when narrow.
    It separates agreement from restoration quality and labels saved ImageJ
-   measurements. It never executes Fiji/ImageJ or a JAR.
+   measurements. The three synchronized images show Python, saved DL2 and signed
+   difference outputs. It never executes Fiji/ImageJ or a JAR.
 6. Save numerical float TIFF or use Experiment files to export/reopen a versioned
-   JSON bundle with exact input arrays, hashes, CSV measurements, and conventions.
+   JSON bundle for the selected history run, with exact input/output arrays,
+   hashes, CSV measurements and conventions. Reopen displays the saved output and
+   recorded measurements/time in Compare & history without running restoration.
+   Captured RL phases and available curves reopen in RL inspector. Earlier bundles
+   reopen their rounded TIFF result and available curve, with no intermediate phases.
 
 The app also opens single grayscale TIFF/PNG files, generates or imports centered
 normalized PSFs, and simulates seeded Poisson degradation explicitly.
 PSF, sigma and L appear inside Inputs (after Noise seed, before Generate) or
 Restoration (above algorithm settings), and are hidden in the other sidebar
-sections. L sits immediately below Open PSF, and values are shared between panels.
+sections. The row order is PSF mode, Open PSF, Gaussian sigma, then intensity L;
+values are shared between panels.
 Editing these settings keeps the current observation fixed until Generate is
 explicitly clicked.
 Opening a clean source shows it only as ground truth; the observation stays empty

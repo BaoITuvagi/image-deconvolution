@@ -6,6 +6,14 @@ import numpy as np
 
 from image_deconvolution.core.algorithms import blur, metrics
 
+RL_PHASES = (
+    "Estimate x(k)",
+    "Prediction Hx(k)",
+    "Ratio y / max(Hx, epsilon)",
+    "Correction H* ratio",
+    "Updated x(k+1)",
+)
+
 
 def quality(truth, estimate, data_range):
     if truth is None:

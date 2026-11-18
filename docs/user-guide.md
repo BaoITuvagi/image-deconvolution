@@ -10,8 +10,11 @@ Do not publish or redistribute the research assets before confirming their right
 
 The sidebar has four expandable sections: Inputs & simulation, Restoration,
 Display & history, and Experiment files. PSF and intensity fields appear only
-inside Inputs or Restoration, without a separate frame. Inputs places them after
-Noise seed and before Generate; Restoration places them above the algorithm
+inside Restoration and, when a simulation source is available, Inputs without a
+separate frame. Inputs hides these fields at startup, after loading a saved
+example, or after opening a degraded image. Opening a source reveals them after
+Noise seed and before Generate, including for regeneration afterward.
+Restoration places them above the algorithm
 settings. The row order is PSF mode, Open PSF, Gaussian sigma, then Intensity
 range L. Open PSF is a clickable filename field: it is blank before a file is
 selected and shows the filename afterward. Click it or focus it and press Enter
@@ -42,30 +45,69 @@ current display settings remain in Display & history.
    parameters selected at P=200: IF 0.3, TRIF 0.1, RL 2, epsilon 1e-6, and L=1.
    To demonstrate report Table 5.5, choose Cells — Report — P=200 and click Load,
    then run the three-method comparison in Restoration.
-2. Expand Restoration. Choose RL, IF, or TRIF, and edit the method's parameters.
-   The PSF and L fields retain the settings from Inputs. Gaussian sigma is
+   Degraded input starts measuring MSE, PSNR and SSIM immediately, before any
+   restoration or history entry. It displays one line beside View current inputs.
+   Measurements run in the background without disabling the sidebar. Rapid input
+   or L changes replace the pending request; old results cannot overwrite the
+   current or historical baseline. While a measurement is pending or unavailable,
+   the summary shows Degraded input: N/A without an accompanying reason.
+2. Expand Restoration. The Method selector shows RL (Richardson-Lucy),
+   IF (Thresholded inverse filtering), and TRIF (Zeroth-order Tikhonov) without
+   a separate method-description row. Choose a method and edit its parameters.
+   PSF and L use the settings loaded with the preset. Gaussian sigma is
    used only when PSF is Gaussian. Imported centered PSFs are center-padded to
    image size and normalized to unit sum.
    Inactive parameters are dimmed. Small decimal parameters use adaptive arrow
    steps. To configure a three-method comparison, select each method and edit its
    retained settings before clicking Compare.
-3. Click Run selected method or Compare IF, TRIF, and RL. Processing runs in a
-   worker; the controls stay disabled until it finishes. The views remain usable.
-4. Select a history row with the mouse or arrow keys to inspect that run's
-   original observation, ground truth, output, measurements, and configuration.
-   Two Additional results selectors above the images list only runs with identical
-   observed pixels. After a three-method comparison, all three outputs appear
-   immediately. The five views use one display range. Each output identifies its
-   method and parameters; the history table also identifies the input image.
-   Loading a new image or editing ground truth shows the current inputs immediately
-   and retains history. View current inputs returns to the next run's inputs at
-   any time. History selection does not replace the controls for the next run;
-   an earlier-configuration notice remains visible when appropriate.
-   Degraded-input and selected-output MSE/PSNR/SSIM use the same ground truth and
-   L. PSNR change is output minus input; a negative value means lower PSNR. These
-   exploratory results do not select benchmark parameters. Undefined infinity
-   differences show N/A.
-5. Click Save selected output TIFF to save float32 pixels, including negative
+3. Initially only the observation and ground truth are shown. Click Run selected
+   method to reveal three fixed result slots: the left slot contains the output
+   and has a selection border; the other two are empty. Another single-method
+   run replaces the selected slot and adds a history row, even with unchanged
+   settings. Repeating RL starts from the observation with the configured number
+   of iterations, rather than continuing the previous run. Click a different
+   slot, including an empty one, to send the next output there. The destination
+   is captured when Run is clicked. Processing runs in a worker; sidebar
+   controls stay disabled until it finishes. The views remain usable.
+4. Compare IF, TRIF, and RL fills all three slots in that left-to-right order
+   using the current observation/PSF and each method's retained parameters,
+   adds three history rows, and keeps the currently selected slot active.
+5. To inspect a saved run, click the destination slot, then select a history row
+   with the mouse or arrow keys. Only that slot changes; the other compatible
+   slots remain. The slot title shows the session run identifier, method and
+   parameters on one line, with no separate text row inside the image slot.
+   Narrow titles are shortened with an ellipsis. Result slots show no hover
+   popups; the history Parameters column retains the run settings and recorded L.
+   Compact baseline spacing and aligned result
+   viewports leave more height for the images. On narrow windows or larger text,
+   the baseline wraps as needed to remain readable.
+   Clicking a populated slot selects its history row
+   and makes it the run used by RL inspector, Save selected output TIFF and
+   Export selected experiment. Empty slots have no selected run and disable
+   those actions. Press Enter or Space on a focused slot to select it.
+   All five views use one display range. Selecting a run with different observed
+   pixels or ground truth switches the displayed input context and clears
+   incompatible slots, without changing the current inputs/controls for the
+   next run. View current inputs returns to those inputs and hides/clears the
+   result slots while retaining history. Loading a new image or editing ground
+   truth also shows current inputs immediately and retains history.
+   The Configuration column identifies earlier configurations. Column sizing and
+   normal-weight headers follow the same rules with or without history; columns
+   fill the available width. Narrow windows use horizontal scrolling to preserve
+   readable headings. Long cells wrap where possible and retain complete tooltips.
+   The Parameters column includes the recorded intensity L for each run.
+   Degraded input presents MSE, PSNR (dB), and SSIM in one compact line. Current
+   inputs use the current observation, ground truth and declared L; changing L
+   refreshes this baseline without regenerating the observation. Historical
+   inputs use that run's saved measurements; the tooltip identifies the run and
+   recorded L. Output quality appears in history. Both historical measurements
+   use that run's ground truth and L.
+   PSNR change is output minus input; a negative value means lower PSNR.
+   These exploratory results do not select benchmark parameters. Undefined
+   infinity differences show N/A. Returning to current inputs restores or
+   recalculates their baseline without requiring another run. Missing or
+   incompatible inputs produce N/A only in the degraded-input summary.
+6. Click Save selected output TIFF to save float32 pixels, including negative
    values or values above 1. This rounds float64 to float32; it never saves the
    display screenshot. An existing file requires the native save dialog's
    overwrite confirmation.
@@ -73,6 +115,8 @@ current display settings remain in Display & history.
 History is limited to eight runs or approximately 256 MiB of counted input/output/
 checkpoint arrays, except a single larger run. Oldest entries are dropped first.
 History is in memory; export a needed run before closing or clearing it.
+Slots referencing an evicted run are emptied; session run identifiers are not
+renumbered as older entries are dropped.
 Clear run history asks for confirmation and keeps saved files.
 
 ## Open your own images and simulate degradation
@@ -88,13 +132,13 @@ values. The input tooltip reports the applied policy. On load, the shared displa
 starts at the unsigned-integer scale (255 or 65535), or [0, 1] for normalized
 integers; other custom inputs use input min/max. Saved examples use [0, 1].
 This suggestion changes viewing only: numerical arrays and intensity L are kept.
-For preserved integers, explicitly set L to the image's declared scale, or reopen
+For preserved integers, explicitly set L in Restoration to the image's declared scale, or reopen
 with normalization. Display & history can change the shared display range.
 
-Open optional ground truth uses the same loading policy. In Inputs or Restoration,
+Open optional ground truth uses the same loading policy. In Restoration,
 set Intensity range L to the ground truth's declared intensity scale (for example,
 1 for normalized research pixels or 255 for preserved 8-bit pixels). Metrics are
-N/A with an explanation if truth is missing, dimensions differ, either dimension
+N/A if truth is missing, dimensions differ, either dimension
 does not exceed 10, or truth lies outside [0, L]. Clear ground truth removes it
 for subsequent runs; historical measurements retain their original truth.
 
@@ -105,7 +149,11 @@ current observation and restoration preview while retaining history. Historical
 runs can still be inspected; View current inputs returns to the pending source.
 Configure photon level, seed, PSF and L in Inputs & simulation, then explicitly
 click Generate / regenerate degradation. On success, Current observation shows the degraded image,
-the source stays as ground truth, and restoration becomes available. If generation
+the source stays as ground truth, and restoration becomes available. Generate
+retains the current shared display range, including manual display settings;
+source pixels and displayed brightness stay unchanged as simulation parameters
+change. The new observation uses the same display range. L remains a simulation
+and measurement parameter, independent of display settings. If generation
 fails, no observation is created and the source remains available for correction.
 Saved examples and Open degraded image provide observations immediately.
 The model is circular blur followed by Poisson sampling of
@@ -130,9 +178,12 @@ the correction is circular convolution with the adjoint PSF.
 At most eight complete checkpoints are retained within 64 MiB. If one checkpoint
 would exceed that budget, turn off capture to restore the large image. The curve
 uses up to 32 selected measurements including the final iteration. Choose PSNR or
-SSIM separately. Infinite PSNR is preserved in measurements but omitted from the
-finite plot. These curves are exploratory and do not replace independently
-selected benchmark parameters.
+SSIM separately. The horizontal axis is labeled Iteration; dots mark actual
+finite measurements, joined by straight segments. A single measurement appears
+as one dot. The inspector starts directly with its controls; the report contains
+the mathematical explanation. Infinite PSNR is preserved in measurements but
+omitted from the finite plot. These curves are exploratory and do not replace
+independently selected benchmark parameters.
 
 To explore iterations, load Bars — reference, then edit RL iterations in
 Restoration (for example, 5, 20, 80, or 200) and run again. Its quality can rise and
@@ -156,12 +207,23 @@ The configuration is sigma 2, photon level 200, seed 0, RL 5 iterations or TRIF
 lambda 0.1, PSF normalization 1, circular boundaries, epsilon 1e-6, RL initialized
 from the observation, Academic FFT in the saved plugin, no padding/apodization,
 and intact float output. All TIFFs and metadata are checked against recorded
-source hashes. The table separates max absolute difference/RMSE agreement from
-restoration quality. ImageJ MSE/PSNR columns are saved measurements; SSIM is
-calculated in Python. The signed difference image has its own labeled range.
-Show reference details expands the configuration/provenance and additional RMSE,
-saved ImageJ MSE, and Python SSIM of saved DL2 columns. The compact table keeps
-agreement and quality visible without the longer technical explanation.
+source hashes. The table has six columns: Image, Method, Max |difference|,
+Python PSNR (dB), Python SSIM, and ImageJ PSNR (saved). Max |difference| measures
+agreement between Python and DL2; PSNR and SSIM measure restoration quality
+against ground truth. ImageJ PSNR is a saved measurement; Python PSNR/SSIM are
+calculated anew. The same column sizing and normal-weight headers apply before
+and after comparison or row selection. Columns fill the available width and
+scroll horizontally when the window is too narrow for readable headings.
+
+Select a row with the mouse or arrow keys to view the new Python output, saved
+DL2 output and signed difference (Python minus DL2). Zoom and pan are synchronized.
+The first two views use [0, 1]; the signed difference uses its own symmetric
+range [-d, d], where d is the larger of that row's maximum absolute difference
+and 1e-12. Mid-gray represents zero, brighter values are positive and darker
+values are negative. This contrast expansion makes tiny differences visible;
+read Max |difference| to judge their magnitude. There is no expandable details
+control or summary line beneath the images. Technical provenance is documented
+here rather than repeated in the tab.
 
 The largest reproduced absolute difference in the verified environment is
 8.104919255735865e-7. The 1e-6 baseline is configuration-specific. IF has not been
@@ -173,23 +235,54 @@ DeconvolutionLab2 or a new restoration algorithm is claimed.
 Select a history run, expand Experiment files, and choose Export selected
 experiment. Choose an existing **parent folder**, then enter a **new folder name**
 in the second dialog. Canceling either dialog creates nothing. Existing
-destinations are refused. The new folder contains:
+destinations are refused. Only the selected history run is exported, using its
+recorded inputs/settings even if the sidebar has since changed. The new folder contains:
 
 - `experiment.json`: schema version, method parameters, scientific conventions,
   source identities/hashes, applicable noise settings and environment versions.
 - `observation.npy`, `psf.npy`, and optional `ground_truth.npy`: exact float64
   numerical input snapshots. These files are required to rerun the JSON.
+- `output.npy`: the exact float64 restoration output used for saved-result
+  reopening, preserving the numerical values behind the recorded measurements.
 - `<method>_output.tif`: numerical float32 output without clipping/rescaling.
+- `rl_<iteration>_<phase>.npy`: the five intermediate images at each checkpoint,
+  only when the selected RL run captured steps. The existing eight-checkpoint /
+  64 MiB limit still applies; export does not generate extra steps.
 - `measurements.csv` and, when available, `rl_curve.csv`: values from that run.
   Measurements include the degraded-input baseline and PSNR change; JSON also
   records the input measurements. CSV curve rows still describe updated RL estimates.
 
-Reopen experiment JSON checks the version, conventions, dimensions, and file/
-numerical hashes and restores the controls. If an input array has moved, locate
-the matching .npy file when prompted. A changed array is rejected. Click Run
-selected method explicitly to rerun. JSON does not embed pixels. In this Windows
-environment, reopen/rerun differences from repeated PSF normalization are tested
-with absolute tolerance 1e-12, independently of plugin comparison tolerance.
+Reopen experiment JSON validates the version, conventions, dimensions, image
+hashes, measurements and inspection limits in a worker before changing the
+workspace. It restores inputs/settings, adds one saved run to history and displays
+its output in the selected Compare & history slot without running restoration.
+Compatible slots and existing history remain subject to the usual history limits;
+slots from another observation/ground truth are cleared. The history Configuration cell
+labels the reopened record as Saved experiment. Time and quality are the recorded
+values, not new measurements or the duration of opening the folder.
+
+For a captured RL run, select RL inspector to view its saved checkpoints and
+PSNR/SSIM curves without rerunning. A run without capture has no intermediate
+images; suitable ground truth is still required for quality curves. IF/TRIF do
+not supply RL inspection data. Existing Update explanations and phase controls
+retain their behavior.
+
+If an input array has moved, locate the matching .npy file when prompted; canceling
+keeps the workspace unchanged. Changed arrays or missing saved-result files are
+rejected. Keep the whole export folder together: JSON does not embed image pixels.
+Save selected output only writes the TIFF; an experiment export already includes it.
+
+Version-1 bundles remain supported using their saved float32 TIFF, recorded
+measurements/time and optional curve CSV. Their measurements describe the original
+run before TIFF rounding, and the history tooltip records that distinction.
+Legacy bundles contain no intermediate RL images; inspector explicitly explains
+that capture and a new run are needed to obtain them. Re-exporting a legacy result
+does not recover lost precision or checkpoints.
+
+Click Run selected method explicitly to make a new run using the reopened inputs
+and settings. In this Windows environment, rerun differences from repeated PSF
+normalization are tested with absolute tolerance 1e-12, independently of plugin
+comparison tolerance. New bundles restore the saved output/checkpoints exactly.
 
 ## Timing, limits, and recovery
 
@@ -202,7 +295,9 @@ to its research benchmark, not a verified speedup of this desktop change.
 The legacy `cache=False` code path inverse/forward-transforms H in each iteration;
 it is not the report's baseline that rebuilds the OTF from the spatial PSF.
 Long runs have no cancellation in this version. Closing is blocked
-while a worker runs; wait for completion. If a worker fails, the app reports its
+while a restoration or input-measurement worker runs; wait for completion.
+Input-measurement failures leave the baseline at N/A; a later input/L change
+can trigger another measurement. If a restoration worker fails, the app reports its
 English error and re-enables controls without relabeling an older result.
 
 The implementation currently targets 2D grayscale known-PSF restoration with

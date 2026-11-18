@@ -11,13 +11,6 @@ class InspectionPanel(QWidget):
         super().__init__()
         self.record = None
         layout = QVBoxLayout(self)
-        self.description = QLabel(
-            "RL: prediction = Hx; ratio = y / max(Hx, epsilon); correction = H* ratio; "
-            "updated estimate = x × correction. H* is the circular adjoint. "
-            "Choose a captured iteration and phase. Curves are exploratory; they do not select benchmark parameters."
-        )
-        self.description.setWordWrap(True)
-        layout.addWidget(self.description)
         form = QFormLayout()
         self.iteration = QComboBox()
         self.phase = QComboBox()
@@ -67,7 +60,9 @@ class InspectionPanel(QWidget):
         ):
             self.view.set_image(None, 0, 1)
             self.range_info.setText(
-                "Select an RL run with Capture RL steps enabled. Quality curves require suitable ground truth."
+                self.record.inspection_note
+                if self.record is not None and self.record.inspection_note
+                else "Select an RL run with Capture RL steps enabled. Quality curves require suitable ground truth."
             )
             return
         iteration = self.iteration.currentData()

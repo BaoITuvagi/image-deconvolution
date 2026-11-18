@@ -1,9 +1,11 @@
 """Saved reference comparisons with separate agreement and quality labels."""
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QEvent, QTimer, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
     QTableWidget,
@@ -13,6 +15,53 @@ from PySide6.QtWidgets import (
 )
 
 from image_deconvolution.ui.image_view import ImageView
+
+
+class ReferenceTable(QTableWidget):
+    """Readable columns with the same sizing policy before and after comparison."""
+
+    HEADINGS = (
+        "Image",
+        "Method",
+        "Max |difference|",
+        "Python PSNR (dB)",
+        "Python SSIM",
+        "ImageJ PSNR (saved)",
+    )
+
+    def __init__(self):
+        super().__init__(0, len(self.HEADINGS))
+        self.setHorizontalHeaderLabels(self.HEADINGS)
+        header = self.horizontalHeader()
+        header.setHighlightSections(False)
+        font = QFont()
+        font.setBold(False)
+        header.setFont(font)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        header.setStretchLastSection(False)
+        self.verticalHeader().hide()
+
+    def fit_columns(self):
+        metrics = self.horizontalHeader().fontMetrics()
+        minimum = [metrics.horizontalAdvance(text) + 24 for text in self.HEADINGS]
+        samples = ("fibers", "TRIF") + ("-1.23456789e-07",) * 4
+        for column, sample in enumerate(samples):
+            minimum[column] = max(
+                minimum[column], metrics.horizontalAdvance(sample) + 16
+            )
+        extra = max(0, self.viewport().width() - sum(minimum))
+        for column, width in enumerate(minimum):
+            share = extra // len(minimum) + (column < extra % len(minimum))
+            self.setColumnWidth(column, width + share)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.fit_columns()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            QTimer.singleShot(0, self.fit_columns)
 
 
 class ReferencePanel(QWidget):
@@ -27,41 +76,10 @@ class ReferencePanel(QWidget):
                 "New Python calculations against six saved DeconvolutionLab2 outputs. No ImageJ is executed."
             )
         )
-        self.note = QLabel(
-            "Saved DeconvolutionLab2 references — this action does not run ImageJ. "
-            "New Python results use saved float TIFF inputs, sigma-2 PSF normalized to 1, circular boundaries, "
-            "RL 5 iterations initialized from y, epsilon 1e-6, or TRIF lambda 0.1 (L=I). "
-            "The saved plugin used Academic FFT, no padding/apodization and intact float output. "
-            "Agreement (max absolute difference/RMSE) differs from restoration quality against ground truth. IF is not verified against a different plugin variant."
-        )
-        self.note.setWordWrap(True)
-        self.note.setVisible(False)
-        layout.addWidget(self.note)
-        controls = QHBoxLayout()
         self.verify = QPushButton("Compare six saved RL / TRIF references")
         self.verify.clicked.connect(self.verify_requested.emit)
-        controls.addWidget(self.verify)
-        self.details = QPushButton("Show reference details")
-        self.details.setCheckable(True)
-        self.details.toggled.connect(self.show_details)
-        controls.addWidget(self.details)
-        layout.addLayout(controls)
-        self.table = QTableWidget(0, 9)
-        self.table.setHorizontalHeaderLabels(
-            [
-                "Image",
-                "Method",
-                "Max |difference|",
-                "RMSE agreement",
-                "Python PSNR (dB)",
-                "Python SSIM",
-                "ImageJ MSE (saved)",
-                "ImageJ PSNR (saved)",
-                "DL2 SSIM (Python)",
-            ]
-        )
-        for column in [3, 6, 8]:
-            self.table.setColumnHidden(column, True)
+        layout.addWidget(self.verify)
+        self.table = ReferenceTable()
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -87,16 +105,6 @@ class ReferencePanel(QWidget):
                 if view is not other:
                     view.navigated.connect(other.synchronize)
         layout.addLayout(images, 2)
-        self.detail = QLabel(
-            "No new Python comparison yet. Select a row after comparison."
-        )
-        self.detail.setWordWrap(True)
-        layout.addWidget(self.detail)
-
-    def show_details(self, visible):
-        self.note.setVisible(visible)
-        for column in [3, 6, 8]:
-            self.table.setColumnHidden(column, not visible)
 
     def accept_rows(self, rows):
         self.rows = rows
@@ -108,12 +116,9 @@ class ReferencePanel(QWidget):
                 result["image"],
                 result["method"],
                 result["max_abs"],
-                result["rmse"],
                 q["psnr"],
                 q["ssim"],
-                result["saved_imagej_mse"],
                 result["saved_imagej_psnr"],
-                result["reference_quality_python"]["ssim"],
             ]
             for column, value in enumerate(values):
                 self.table.setItem(
@@ -123,7 +128,6 @@ class ReferencePanel(QWidget):
                         value if isinstance(value, str) else f"{value:.9g}"
                     ),
                 )
-        self.table.resizeColumnsToContents()
         self.table.setCurrentCell(0, 0)
         self.table.selectRow(0)
         self.table.blockSignals(False)
@@ -142,9 +146,3 @@ class ReferencePanel(QWidget):
         self.saved_view.set_image(result["reference"].pixels, 0, 1)
         bound = max(result["max_abs"], 1e-12)
         self.diff_view.set_image(result["difference"], -bound, bound)
-        baseline = "within" if result["max_abs"] < 1e-6 else "outside"
-        self.detail.setText(
-            f"{result['image']} / {result['method']}: max |difference|={result['max_abs']:.9g}, "
-            f"RMSE={result['rmse']:.9g}. Signed display range [{-bound:.5g}, {bound:.5g}]. "
-            f"{baseline.capitalize()} the recorded 1e-6 baseline for this configuration."
-        )

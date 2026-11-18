@@ -7,6 +7,11 @@ not imply that other group members developed the desktop app, or that I solely
 authored the group's research. Individual source-code authorship is not established
 by that copy, so no individual author or license is inferred here.
 
+In [PR #28](https://github.com/nguyenbaoI67/image-deconvolution/pull/28),
+conglam56 contributed RL conjugate-OTF caching, report demonstration presets,
+related tests and documentation. I integrated that contribution with the later
+desktop workflows. The original contribution commit retains its author.
+
 The following source-relative paths identify the imported material. SHA-256 values
 record the inspected source bytes; they are provenance records, not runtime paths.
 

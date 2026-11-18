@@ -3,6 +3,204 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 integration of PR #28 adds three Report — P=200 presets
+alongside the three unchanged reference presets. Report settings use IF 0.3,
+TRIF 0.1, RL 2, epsilon 1e-6 and L=1 on the same saved input/PSF/ground-truth
+TIFFs. Loading does not generate noise or execute restoration. The fixed six
+saved-reference comparisons keep RL 5 and TRIF 0.1. RL and its inspector now
+precompute the conjugate OTF for each cached run; equations, capture limits,
+measurement conventions and the legacy uncached transforms are preserved.
+This does not establish a desktop speedup matching the research benchmark.
+The integration preserves current source generation, result slots/history,
+baseline measurements, inspector presentation and experiment export/reopen.
+The updated build is `dist/report-demo-alignment/Image Deconvolution`; the
+designated original package at `dist/Image Deconvolution` is kept unchanged.
+
+All 59 regression tests and twenty-one source/frozen Qt acceptance groups passed.
+The checks cover the previous RL loop with odd/even asymmetric PSFs, cached and
+uncached checkpoints, report/reference presets, all three report-method bundle
+round trips after sidebar edits, captured inspection and the later desktop
+workflows. Source/frozen Report comparison and reopened-inspector captures were
+visually inspected. Native Windows interaction also verified the six-item
+dropdown, Cells Report loading, IF/TRIF/RL comparison and RL inspector. The EXE
+passed from an empty working directory without development Python on PATH,
+with Python socket connections denied. All 386 files of the designated original
+package were checked by length and SHA256 and remain unchanged. Ruff lint/format,
+dependency and diff checks passed. Six saved DL2 comparisons remain below 1e-6
+(maximum 8.104919255735865e-7); no new ImageJ execution or benchmark occurred.
+
+The November 18, 2026 experiment update reopens a selected run as a saved result
+in Compare & history without executing restoration. Version-2 exports keep exact
+float64 output and captured RL checkpoints alongside inputs, TIFF and CSV files.
+Recorded quality, timing, baseline and available curves are restored; selecting
+the reopened RL record also populates RL inspector when capture exists. No
+capture or unsuitable ground truth does not create intermediate images or metrics.
+Version-1 bundles use the saved float32 TIFF and available recorded curve; missing
+legacy checkpoints and pre-rounding measurements are identified explicitly.
+Reopening validates saved data in a worker before replacing inputs or adding
+history, preserves existing history within its limits and allows explicit reruns.
+Export remains scoped to one selected history run. The local distribution is
+`dist/experiment-reopen/Image Deconvolution`; earlier builds are preserved.
+
+All 56 regression tests and nineteen source/frozen Qt acceptance groups passed,
+including exact saved arrays, all captured phases, legacy reopening, all methods,
+absent ground truth/capture, relocated inputs, invalid bundle rejection and
+explicit reruns within 1e-12. The packaged build passed from an empty working
+directory without development Python on PATH, with Python socket connections
+denied. Reopened Compare/inspector captures were visually inspected. Native
+Windows checks opened and canceled the actual Reopen dialog; modal targeting in
+Computer Use could not reliably select its filename field, so successful native
+file selection is not claimed. Maintained Qt checks supplied dialog paths for
+full round trips. Ruff, dependency and diff checks passed; all six saved DL2
+comparisons remain below 1e-6. No new ImageJ execution or benchmark occurred.
+
+The November 18, 2026 Saved references update removes Show reference details,
+its expanded explanation, the three optional columns and the summary beneath
+the images. The fixed six-column table keeps Image, Method, Max |difference|,
+Python PSNR (dB), Python SSIM and ImageJ PSNR (saved). Empty and populated states
+use one sizing policy: readable normal-weight headings, all available width and
+horizontal scrolling when narrow. The three image titles, synchronized views,
+display ranges and numerical reference calculations are preserved. Technical
+configuration and provenance remain in the user guide. The local distribution
+is `dist/saved-references/Image Deconvolution`; earlier builds are preserved.
+
+All 50 regression tests and sixteen acceptance groups in both source and frozen
+builds passed. Reference checks cover empty/populated layouts, 9/12/16-point
+text, resizing, repeated comparison and row selection. Native Windows Qt
+captures of empty/populated states and the packaged reference tab were visually
+inspected. The EXE passed from an empty working directory without development
+Python on PATH, with Python socket connections denied. All six saved DL2
+comparisons stayed below 1e-6 (maximum 8.104919255735865e-7). Ruff, dependency
+compatibility and diff checks passed. No new ImageJ execution or performance
+benchmark occurred; no OS-level mouse automation is claimed.
+
+The November 18, 2026 RL inspector update removes the formula paragraph above
+the controls, marks each finite PSNR/SSIM measurement with a visible dot and
+shortens the horizontal axis label to Iteration. Straight segments still join
+the actual measurements; a single measurement is visible as one dot. The
+existing Update explanation, five phases, display ranges and updated-estimate
+quality readouts are unchanged. Numerical processing, capture limits and
+measurement sampling are preserved. The new local distribution is
+`dist/rl-inspector/Image Deconvolution`; earlier builds are preserved.
+
+All 49 regression tests and fifteen acceptance groups in both source and frozen
+builds passed. Additional Windows Qt checks exercised all five phases at
+updates 1 and 5, both metrics and 9/12/16-point text settings. Single, multiple,
+missing, nonfinite and mixed measurements rendered successfully; pixel checks
+confirmed markers at finite measured points. Captured source and packaged
+inspector views were visually inspected. The EXE passed from an empty working
+directory without development Python on PATH, with Python socket connections
+denied. No new ImageJ execution or performance benchmark occurred.
+
+The November 18, 2026 result-tooltip update removes hover popups from restoration
+slots, including both saved-run details and empty-slot instructions. Inline run
+titles, accessible descriptions, selection borders and history settings remain
+available. Numerical processing, baseline measurements and save/export behavior
+are unchanged. The new local distribution is
+`dist/no-result-tooltips/Image Deconvolution`; earlier builds are preserved.
+
+The affected layout regression passed. Source and frozen Windows builds each
+passed fifteen acceptance groups, including Qt tooltip-help events over empty
+and populated image slots confirming that no popup appears. The EXE passed
+from an empty working directory without development Python on PATH. Ruff,
+dependency and diff checks passed. No new ImageJ execution occurred.
+
+The November 18, 2026 compact-image update measures degraded-input quality
+immediately after loading a saved example or compatible custom inputs. The
+baseline uses the current declared L before a run; history continues to use
+recorded input snapshots and L. Measurements run in a separate coalesced worker
+and stale results are ignored after input, L or historical-context changes.
+Unavailable measurements show only Degraded input: N/A, without a reason or
+additional status sentence. The summary and View current inputs share a compact
+row; the summary wraps only when necessary for narrow windows or large text.
+
+Run ID, method and parameters now share each result slot's title line, with full
+values in tooltips when the visible title is shortened. Removing the inner
+parameter row and reclaiming the former multi-row baseline space gives the
+images more room. Three result viewports have aligned usable heights; aspect
+ratio, shared zoom/pan, selected borders, IF/TRIF/RL positions and history/
+save/export behavior are retained. The new local distribution is
+`dist/compact-images/Image Deconvolution`; earlier builds are preserved.
+
+All 49 regression tests passed. Source and frozen Windows builds each passed
+fifteen acceptance groups. Coverage includes baseline-on-load for all presets,
+current/recorded L, invalid or missing inputs, coalesced background measurements,
+stale-result rejection, failure recovery, inline titles and aligned viewports at
+9/12/16-point fonts. Before a result is shown, the two input views occupy the
+full image area; the hidden result row reserves no blank space. The EXE passed
+from an empty working directory with development Python removed from PATH and
+Python socket connections denied. Six saved DL2 comparisons passed with maximum
+absolute difference 8.104919255735865e-7. Ruff lint/format, dependency and diff
+checks passed. No new ImageJ execution or performance benchmark occurred.
+
+I compared captured Windows Qt layouts with the previous maintained screenshot
+and inspected the loaded, first-run and three-method states. The native Computer
+Use helper remained unavailable (native pipe not found), so this update does not
+claim OS-level mouse or new native file-dialog checks. Maintained workflow
+checks use actual Qt events and supplied dialog paths.
+
+The November 18, 2026 result-slot update reveals three fixed restoration slots
+only after a run or historical result is displayed. The first single-method run
+fills and selects the left slot; repeated runs replace the selected slot and
+retain separate history entries. Click a slot, then a history row to place a
+saved run there. The other compatible slots stay fixed. Compare fills IF, TRIF,
+RL from left to right and retains the selected position. The selection border,
+history row, RL inspector and save/export actions refer to the same run; empty
+slots disable run-specific actions. Mouse selection and Enter/Space are supported.
+Historical input context stays separate from the current inputs for the next
+run, and incompatible comparison slots are cleared when switching input context.
+Run identifiers stay stable during history eviction, and evicted slots release
+their results.
+
+History uses normal-weight headers and one sizing policy before and after runs,
+fills the available width, and preserves readable headings with horizontal
+scrolling in narrow windows. Parameters includes the recorded intensity L.
+Redundant method/time/intensity, History context and selected-output summary
+lines and the Additional results selectors are removed. View current inputs is
+retained; degraded-input MSE, PSNR and SSIM are aligned separately and always
+refer to the displayed input snapshot. Output metrics and timing remain in
+history and exported measurements. Numerical algorithms, saved presets and
+saved-reference conventions are unchanged. The new local distribution is
+`dist/result-slots/Image Deconvolution`; earlier folders are preserved.
+
+All 45 regression tests passed, including result-slot replacement, mouse and
+keyboard selection, cross-input snapshots, recorded L, history eviction and
+failure recovery. Source and frozen builds passed thirteen desktop workflow
+groups, including readable headers at 9/12/16-point text sizes. The EXE passed
+from an empty working directory with development Python removed from PATH.
+All six saved DL2 comparisons passed with maximum absolute difference
+8.104919255735865e-7. Ruff lint/format, dependency compatibility and diff checks
+passed.
+
+Validation uses Qt interaction automation on the actual Windows window and
+visual inspection of captured layouts. The native Computer Use helper was
+unavailable (native pipe not found), so OS-level mouse automation and new native
+file-dialog checks were not performed in this update. The maintained workflow
+checks exercise file operations with selected paths supplied to the dialogs.
+No new ImageJ execution or performance benchmark is claimed.
+
+The input-workflow update puts each algorithm's full name directly in Method:
+RL (Richardson-Lucy), IF (Thresholded inverse filtering), and TRIF (Zeroth-order
+Tikhonov). The separate description row is removed; run and experiment-file
+identifiers remain RL/IF/TRIF. PSF/intensity controls appear in Inputs only when
+a simulation source exists, including after Generate, and remain available in
+Restoration. Saved examples and degraded-image loading hide them in Inputs.
+Generate preserves the current shared display range and source rendering;
+changed simulation parameters affect the generated observation. Saved reference
+comparisons retain their fixed RL/TRIF configuration. The new local folder is
+`dist/input-workflow/Image Deconvolution`; earlier builds are preserved.
+
+All 41 regression tests and eleven source/frozen desktop workflow groups passed.
+Coverage includes all three method identifiers and experiment round trips,
+source/degraded transitions, inline layout and full method labels at 9/12/16-point
+fonts, and identical source pixels/rendering after changes to sigma, photon
+level, seed, PSF mode/file and L, including a manual shared display range.
+The EXE passed from an empty working directory without development Python on
+PATH. Native Windows self-validation covered the saved-example layout, full
+Method dropdown, actual source dialog, PSF/L visibility, L=2 generation with
+retained source brightness and successful TRIF restoration. Ruff lint/format,
+dependency checks and diff checks passed. No new ImageJ execution occurred.
+
 The compact-PSF update uses an inline Open PSF filename field instead of a
 button and separate summary. Click the field or press Enter/Space while it is
 focused to choose a file. It is blank until a file is selected, and saved
