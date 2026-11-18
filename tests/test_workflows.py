@@ -18,6 +18,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 from PySide6.QtCore import QCoreApplication, QEvent, QPoint, Qt, QThread
+from PySide6.QtGui import QPainter
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -33,6 +34,7 @@ from image_deconvolution.io.images import (
     sample_path,
     save_tiff,
 )
+from image_deconvolution.ui.curve_plot import CurvePlot
 from image_deconvolution.ui.main_window import MainWindow
 
 
@@ -597,6 +599,73 @@ class DesktopTests(unittest.TestCase):
         self.window.inspector.metric_choice.setCurrentText("SSIM")
         self.app.processEvents()
         self.assertFalse(plot.grab().isNull())
+
+    def test_inspector_iteration_axis_has_unique_integer_labels(self):
+        labels = []
+
+        class RecordingPainter(QPainter):
+            def drawText(self, rectangle, alignment, text):
+                if alignment == Qt.AlignmentFlag.AlignCenter and text.isdecimal():
+                    labels.append((rectangle.center().x(), text))
+                return super().drawText(rectangle, alignment, text)
+
+        plot = CurvePlot()
+        self.addCleanup(plot.close)
+        plot.resize(900, 300)
+        cases = [
+            ([1, 2], ["1", "2"]),
+            ([1], ["1"]),
+            ([7], ["7"]),
+            ([1, 2, 3], ["1", "2", "3"]),
+            ([1, 2, 3, 4, 5], ["1", "2", "3", "4", "5"]),
+            ([1, 1000], ["1", "250", "500", "750", "1000"]),
+            ([998, 999, 1000], ["998", "999", "1000"]),
+        ]
+        with patch("image_deconvolution.ui.curve_plot.QPainter", RecordingPainter):
+            for metric in ("psnr", "ssim"):
+                for iterations, expected in cases:
+                    with self.subTest(metric=metric, iterations=iterations):
+                        labels.clear()
+                        rows = [{"iteration": i, metric: 1 / i} for i in iterations]
+                        plot.set_curve(rows, metric)
+                        self.assertFalse(plot.grab().isNull())
+                        self.assertEqual([text for _, text in labels], expected)
+                        for (x0, n0), (x1, n1) in pairwise(labels):
+                            self.assertGreater(x1, x0)
+                            self.assertGreater(int(n1), int(n0))
+                        if len(labels) > 2:
+                            scale = (labels[-1][0] - labels[0][0]) / (int(labels[-1][1]) - int(labels[0][1]))
+                            for x, text in labels:
+                                self.assertAlmostEqual(
+                                    x,
+                                    labels[0][0] + (int(text) - iterations[0]) * scale,
+                                )
+            labels.clear()
+            plot.set_curve(
+                [{"iteration": 1, "psnr": float("inf")}, {"iteration": 2, "psnr": 30}],
+                "psnr",
+            )
+            plot.grab()
+            self.assertEqual([text for _, text in labels], ["2"])
+            for points in (9, 12, 16):
+                font = plot.font()
+                font.setPointSize(points)
+                plot.setFont(font)
+                for width in (320, 900):
+                    plot.resize(width, 300)
+                    labels.clear()
+                    plot.set_curve([{"iteration": i, "psnr": 30} for i in (1, 1000)], "psnr")
+                    plot.grab()
+                    self.assertEqual(labels[0][1], "1")
+                    self.assertEqual(labels[-1][1], "1000")
+                    self.assertEqual(len(labels), len({text for _, text in labels}))
+                    for x, text in labels:
+                        half_width = plot.fontMetrics().horizontalAdvance(text) / 2
+                        self.assertGreaterEqual(x - half_width, 0)
+                        self.assertLessEqual(x + half_width, width)
+                    for (x0, n0), (x1, n1) in pairwise(labels):
+                        needed = sum(plot.fontMetrics().horizontalAdvance(n) / 2 for n in (n0, n1))
+                        self.assertGreater(x1 - x0, needed + 8)
 
     def test_keyboard_selection_export_and_current_inputs(self):
         self.window.load_sample()

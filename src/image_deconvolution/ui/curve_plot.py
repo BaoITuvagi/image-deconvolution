@@ -31,7 +31,9 @@ class CurvePlot(QWidget):
             Qt.AlignmentFlag.AlignCenter,
             f"Exploratory RL quality — {title}",
         )
-        plot = QRectF(76, 40, max(1, self.width() - 98), max(1, self.height() - 92))
+        label_width = max(56, painter.fontMetrics().horizontalAdvance("1000") + 12)
+        right_margin = max(22, math.ceil(label_width / 2) + 4)
+        plot = QRectF(76, 40, max(1, self.width() - 76 - right_margin), max(1, self.height() - 92))
         painter.drawRect(plot)
         points = [(r["iteration"], r[self.metric_key]) for r in self.rows if math.isfinite(r[self.metric_key])]
         if not points:
@@ -43,6 +45,7 @@ class CurvePlot(QWidget):
             painter.end()
             return
         xmin, xmax = min(x for x, _ in points), max(x for x, _ in points)
+        last_iteration = xmax
         ymin, ymax = min(y for _, y in points), max(y for _, y in points)
         if xmax == xmin:
             xmax = xmin + 1
@@ -59,11 +62,18 @@ class CurvePlot(QWidget):
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                 f"{ymin + fraction * (ymax - ymin):.5g}",
             )
-            x = plot.left() + fraction * plot.width()
+        tick_count = min(
+            5,
+            last_iteration - xmin + 1,
+            max(2, int(plot.width() / (label_width + 12)) + 1),
+        )
+        for tick in range(tick_count):
+            iteration = xmin if tick_count == 1 else xmin + tick * (last_iteration - xmin) // (tick_count - 1)
+            x = plot.left() + (iteration - xmin) / (xmax - xmin) * plot.width()
             painter.drawText(
-                QRectF(x - 28, plot.bottom() + 6, 56, 22),
+                QRectF(x - label_width / 2, plot.bottom() + 6, label_width, 22),
                 Qt.AlignmentFlag.AlignCenter,
-                f"{xmin + fraction * (xmax - xmin):.0f}",
+                str(iteration),
             )
         path = QPainterPath()
         markers = []

@@ -45,7 +45,8 @@ and [third-party notices](docs/third-party-notices.md).
    spacing gives the aligned images more room. Scroll to zoom and drag to pan
    the synchronized views.
 4. RL inspector displays the five update phases and plots PSNR or SSIM with dots
-   at measured iterations when compatible ground truth exists. Load Bars reference
+   at measured iterations when compatible ground truth exists. Iteration ticks
+   use distinct integers, including short runs. Load Bars reference
    and change RL iterations in Restoration to explore how late iterations can
    reduce quality.
 5. Saved references computes six new Python comparisons against saved DL2 TIFFs.

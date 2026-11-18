@@ -3,6 +3,26 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 RL inspector axis fix removes repeated rounded iteration
+labels. Two-iteration curves show 1 and 2; a single finite sample shows only
+its own iteration label. Longer curves use at most five distinct integer ticks
+placed at their true coordinates, with fewer labels when space is limited.
+PSNR/SSIM measurements, dots, straight segments and restoration are unchanged.
+The corrected local build is `dist/rl-iteration-axis/Image Deconvolution`;
+the designated original and the report-demo-alignment builds are preserved.
+
+All 60 regression tests and twenty-one source/frozen desktop acceptance groups
+passed. The axis regression covers both metrics, single/short/sparse curves up
+to 1000 iterations, finite filtering, and readable tick spacing at 9/12/16-point
+text sizes. Native Windows interaction confirmed the two-iteration PSNR/SSIM
+plots in the corrected EXE. The frozen workflow passed from an empty working
+directory without development Python on PATH and with Python socket connections
+denied. The later 120-character formatting update from main was integrated;
+all 25 application Python files retain identical syntax trees to the tested
+package, and the complete regression suite passed again after integration.
+Six saved DL2 comparisons remain below 1e-6; no new ImageJ execution or benchmark
+occurred.
+
 The November 18, 2026 integration of PR #28 adds three Report — P=200 presets
 alongside the three unchanged reference presets. Report settings use IF 0.3,
 TRIF 0.1, RL 2, epsilon 1e-6 and L=1 on the same saved input/PSF/ground-truth

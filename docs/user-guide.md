@@ -178,7 +178,10 @@ the correction is circular convolution with the adjoint PSF.
 At most eight complete checkpoints are retained within 64 MiB. If one checkpoint
 would exceed that budget, turn off capture to restore the large image. The curve
 uses up to 32 selected measurements including the final iteration. Choose PSNR or
-SSIM separately. The horizontal axis is labeled Iteration; dots mark actual
+SSIM separately. The horizontal axis is labeled Iteration and uses distinct
+integer ticks: a two-iteration run shows 1 and 2, and a single finite sample
+shows only its own iteration label. Longer runs use a readable subset of ticks;
+ticks are scale labels, while dots mark actual
 finite measurements, joined by straight segments. A single measurement appears
 as one dot. The inspector starts directly with its controls; the report contains
 the mathematical explanation. Infinite PSNR is preserved in measurements but
