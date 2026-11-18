@@ -3,6 +3,19 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 result-tooltip update removes hover popups from restoration
+slots, including both saved-run details and empty-slot instructions. Inline run
+titles, accessible descriptions, selection borders and history settings remain
+available. Numerical processing, baseline measurements and save/export behavior
+are unchanged. The new local distribution is
+`dist/no-result-tooltips/Image Deconvolution`; earlier builds are preserved.
+
+The affected layout regression passed. Source and frozen Windows builds each
+passed fifteen acceptance groups, including Qt tooltip-help events over empty
+and populated image slots confirming that no popup appears. The EXE passed
+from an empty working directory without development Python on PATH. Ruff,
+dependency and diff checks passed. No new ImageJ execution occurred.
+
 The November 18, 2026 compact-image update measures degraded-input quality
 immediately after loading a saved example or compatible custom inputs. The
 baseline uses the current declared L before a run; history continues to use

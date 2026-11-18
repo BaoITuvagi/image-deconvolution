@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/compact-images/Image Deconvolution/`;
+The updated local distribution is `dist/no-result-tooltips/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -37,7 +37,7 @@ and [third-party notices](docs/third-party-notices.md).
    IF, TRIF, RL from left to right. The selection border identifies the run used
    by the inspector and save/export actions. View current inputs returns to the
    next run's workspace and current-input baseline. Run ID, method and parameters
-   share one title line; full titles remain in tooltips when shortened. Compact
+   share one title line. Result slots show no hover popups. Compact
    spacing gives the aligned images more room. Scroll to zoom and drag to pan
    the synchronized views.
 4. RL inspector explains the five update phases and plots PSNR or SSIM at selected

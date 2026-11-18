@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import numpy as np
 from PySide6.QtCore import QEvent, QPointF, Qt
-from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication, QFileDialog, QInputDialog
+from PySide6.QtGui import QHelpEvent, QMouseEvent
+from PySide6.QtWidgets import QApplication, QFileDialog, QInputDialog, QToolTip
 
 from image_deconvolution.core.algorithms import otf, rl
 from image_deconvolution.experiments.export import environment_versions
@@ -212,6 +212,18 @@ def verify_desktop(destination):
             assert window.active_slot == 0
             assert window.slot_records[0] is record
             assert window.slot_records[1:] == [None, None]
+            for box, view in zip(window.image_boxes[2:], window.views[2:]):
+                assert box.toolTip() == "" and view.viewport().toolTip() == ""
+                point = view.viewport().rect().center()
+                QToolTip.hideText()
+                app.sendEvent(
+                    view.viewport(),
+                    QHelpEvent(
+                        QEvent.Type.ToolTip, point, view.viewport().mapToGlobal(point)
+                    ),
+                )
+                pump()
+                assert not QToolTip.isVisible()
             assert (
                 window.baseline.heightForWidth(window.baseline.width())
                 <= window.baseline.fontMetrics().height()
@@ -449,7 +461,7 @@ def verify_desktop(destination):
                     box.full_title
                     == f"{window.run_ids[id(run)]}: {run.config.method}: {window.run_parameters(run.config)}"
                 )
-                assert box.full_title in box.toolTip()
+                assert box.toolTip() == ""
             report["comparison_layout"] = {
                 "window": [window.width(), window.height()],
                 "baseline_height": window.baseline.height(),
