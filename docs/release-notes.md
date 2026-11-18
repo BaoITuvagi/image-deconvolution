@@ -3,6 +3,24 @@
 This build completes the seven planned desktop stages. It is prepared locally;
 no GitHub Release is published.
 
+The November 18, 2026 RL inspector update removes the formula paragraph above
+the controls, marks each finite PSNR/SSIM measurement with a visible dot and
+shortens the horizontal axis label to Iteration. Straight segments still join
+the actual measurements; a single measurement is visible as one dot. The
+existing Update explanation, five phases, display ranges and updated-estimate
+quality readouts are unchanged. Numerical processing, capture limits and
+measurement sampling are preserved. The new local distribution is
+`dist/rl-inspector/Image Deconvolution`; earlier builds are preserved.
+
+All 49 regression tests and fifteen acceptance groups in both source and frozen
+builds passed. Additional Windows Qt checks exercised all five phases at
+updates 1 and 5, both metrics and 9/12/16-point text settings. Single, multiple,
+missing, nonfinite and mixed measurements rendered successfully; pixel checks
+confirmed markers at finite measured points. Captured source and packaged
+inspector views were visually inspected. The EXE passed from an empty working
+directory without development Python on PATH, with Python socket connections
+denied. No new ImageJ execution or performance benchmark occurred.
+
 The November 18, 2026 result-tooltip update removes hover popups from restoration
 slots, including both saved-run details and empty-slot instructions. Inline run
 titles, accessible descriptions, selection borders and history settings remain

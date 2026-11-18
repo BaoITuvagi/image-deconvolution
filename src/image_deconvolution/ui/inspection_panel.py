@@ -11,13 +11,6 @@ class InspectionPanel(QWidget):
         super().__init__()
         self.record = None
         layout = QVBoxLayout(self)
-        self.description = QLabel(
-            "RL: prediction = Hx; ratio = y / max(Hx, epsilon); correction = H* ratio; "
-            "updated estimate = x × correction. H* is the circular adjoint. "
-            "Choose a captured iteration and phase. Curves are exploratory; they do not select benchmark parameters."
-        )
-        self.description.setWordWrap(True)
-        layout.addWidget(self.description)
         form = QFormLayout()
         self.iteration = QComboBox()
         self.phase = QComboBox()

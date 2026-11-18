@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/no-result-tooltips/Image Deconvolution/`;
+The updated local distribution is `dist/rl-inspector/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -40,9 +40,10 @@ and [third-party notices](docs/third-party-notices.md).
    share one title line. Result slots show no hover popups. Compact
    spacing gives the aligned images more room. Scroll to zoom and drag to pan
    the synchronized views.
-4. RL inspector explains the five update phases and plots PSNR or SSIM at selected
-   iterations when compatible ground truth exists. Load Bars reference and change
-   RL iterations in Restoration to explore how late iterations can reduce quality.
+4. RL inspector displays the five update phases and plots PSNR or SSIM with dots
+   at measured iterations when compatible ground truth exists. Load Bars reference
+   and change RL iterations in Restoration to explore how late iterations can
+   reduce quality.
 5. Saved references computes six new Python comparisons against saved DL2 TIFFs.
    It separates agreement from restoration quality and labels saved ImageJ
    measurements. It never executes Fiji/ImageJ or a JAR.
