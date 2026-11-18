@@ -412,6 +412,7 @@ def verify_desktop(destination):
             window.run_button.click()
             wait()
             output = window.record.output.copy()
+            saved = window.record
             bundle = root / "exported experiment"
             with (
                 patch.object(
@@ -428,11 +429,99 @@ def verify_desktop(destination):
                 return_value=(str(bundle / "experiment.json"), ""),
             ):
                 window.open_experiment()
+            wait()
+            reopened = window.record
+            assert reopened.saved_from == str((bundle / "experiment.json").resolve())
+            assert reopened is not saved
+            np.testing.assert_array_equal(reopened.output, output)
+            assert reopened.quality == saved.quality
+            assert reopened.input_quality == saved.input_quality
+            assert reopened.seconds == saved.seconds
+            assert reopened.curve == saved.curve
+            assert window.tabs.currentIndex() == 0
+            assert window.slot_records[window.active_slot] is reopened
+            window.tabs.setCurrentIndex(1)
+            for iteration, phases in saved.steps.items():
+                window.inspector.iteration.setCurrentIndex(
+                    window.inspector.iteration.findData(iteration)
+                )
+                for phase, array in phases.items():
+                    window.inspector.phase.setCurrentText(phase)
+                    np.testing.assert_array_equal(window.inspector.view.array, array)
+            pump()
+            assert window.grab().save(str(root / "reopened-inspector.png"))
+            window.tabs.setCurrentIndex(0)
+            pump()
+            assert window.grab().save(str(root / "reopened-compare.png"))
+            checks.append(
+                "Saved float64 output, recorded measurements/time and all captured RL phases reopen without rerunning"
+            )
+
+            metadata = json.loads((bundle / "experiment.json").read_text())
+            metadata["schema_version"] = 1
+            del metadata["result"]
+            legacy = bundle / "legacy.json"
+            legacy.write_text(json.dumps(metadata))
+            with patch.object(
+                QFileDialog, "getOpenFileName", return_value=(str(legacy), "")
+            ):
+                window.open_experiment()
+            wait()
+            np.testing.assert_array_equal(
+                window.record.output, output.astype(np.float32)
+            )
+            assert window.record.quality == saved.quality
+            assert window.record.curve == saved.curve
+            assert window.inspector.iteration.count() == 0
+            assert "legacy export" in window.inspector.range_info.text()
+            checks.append(
+                "Legacy TIFF result and recorded curve reopen with an explicit missing-checkpoint message"
+            )
             window.run_button.click()
             wait()
             np.testing.assert_allclose(window.record.output, output, rtol=0, atol=1e-12)
             checks.append(
                 "UI bundle export -> JSON reopen -> identical rerun within 1e-12"
+            )
+
+            for method, capture in [
+                ("RL", False),
+                ("RL", True),
+                ("IF", True),
+                ("TRIF", True),
+            ]:
+                window.method.setCurrentIndex(window.method.findData(method))
+                window.capture.setChecked(capture)
+                window.clear_truth()
+                window.run_button.click()
+                wait()
+                uncaptured = window.record
+                target = root / f"saved-{method}-{capture}"
+                with (
+                    patch.object(
+                        QFileDialog, "getExistingDirectory", return_value=str(root)
+                    ),
+                    patch.object(
+                        QInputDialog, "getText", return_value=(target.name, True)
+                    ),
+                ):
+                    window.export_button.click()
+                wait()
+                with patch.object(
+                    QFileDialog,
+                    "getOpenFileName",
+                    return_value=(str(target / "experiment.json"), ""),
+                ):
+                    window.open_experiment()
+                wait()
+                np.testing.assert_array_equal(window.record.output, uncaptured.output)
+                assert window.record.quality is None
+                assert window.inspector.iteration.count() == (
+                    len(uncaptured.steps) if method == "RL" and capture else 0
+                )
+                assert window.inspector.chart_view.rows == []
+            checks.append(
+                "Captured/uncaptured RL, IF and TRIF reopen without ground truth or fabricated quality curves"
             )
 
             window.tabs.setCurrentIndex(2)

@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/saved-references/Image Deconvolution/`;
+The updated local distribution is `dist/experiment-reopen/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -51,7 +51,11 @@ and [third-party notices](docs/third-party-notices.md).
    measurements. The three synchronized images show Python, saved DL2 and signed
    difference outputs. It never executes Fiji/ImageJ or a JAR.
 6. Save numerical float TIFF or use Experiment files to export/reopen a versioned
-   JSON bundle with exact input arrays, hashes, CSV measurements, and conventions.
+   JSON bundle for the selected history run, with exact input/output arrays,
+   hashes, CSV measurements and conventions. Reopen displays the saved output and
+   recorded measurements/time in Compare & history without running restoration.
+   Captured RL phases and available curves reopen in RL inspector. Earlier bundles
+   reopen their rounded TIFF result and available curve, with no intermediate phases.
 
 The app also opens single grayscale TIFF/PNG files, generates or imports centered
 normalized PSFs, and simulates seeded Poisson degradation explicitly.

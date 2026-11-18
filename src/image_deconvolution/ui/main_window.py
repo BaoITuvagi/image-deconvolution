@@ -41,7 +41,7 @@ from image_deconvolution.core.algorithms import psf_gaussian
 from image_deconvolution.experiments.export import (
     MissingInput,
     export_bundle,
-    load_bundle,
+    load_experiment,
 )
 from image_deconvolution.experiments.reference import (
     compare_references,
@@ -636,47 +636,60 @@ class MainWindow(QMainWindow):
         self.completion_message = f"Experiment saved: {path}"
 
     def open_experiment(self):
+        if self.worker is not None:
+            return
         path = QFileDialog.getOpenFileName(
-            self, "Reopen experiment configuration", "", "Experiment JSON (*.json)"
+            self, "Reopen saved experiment", "", "Experiment JSON (*.json)"
         )[0]
         if not path:
             return
         overrides = {}
-        try:
-            while True:
-                try:
-                    images, config, degradation = load_bundle(path, overrides)
-                    for name, control in [
-                        ("iterations", self.iterations),
-                        ("epsilon", self.epsilon),
-                        ("threshold", self.threshold),
-                        ("regularization", self.regularization),
-                        ("data_range", self.data_range),
-                    ]:
-                        value = getattr(config, name)
-                        if not control.minimum() <= value <= control.maximum():
-                            raise ValueError(
-                                f"The saved {name} exceeds this version's control limits."
-                            )
-                        if (
-                            isinstance(control, QDoubleSpinBox)
-                            and round(value, control.decimals()) != value
-                        ):
-                            raise ValueError(
-                                f"The saved {name} requires more precision than these controls support."
-                            )
-                    break
-                except MissingInput as exc:
-                    located = QFileDialog.getOpenFileName(
-                        self, str(exc), "", "Exact numerical input (*.npy)"
-                    )[0]
-                    if not located:
-                        return
-                    overrides[exc.role] = located
-            self.set_observation(images["observation"], (0, config.data_range))
-            self.imported_psf = images["psf"]
-            self.ground_truth = images["ground_truth"]
-            self.degradation = degradation
+        slot = self.active_slot
+
+        def load():
+            try:
+                return load_experiment(path, overrides)
+            except MissingInput as exc:
+                return exc
+
+        def locate(missing):
+            located = QFileDialog.getOpenFileName(
+                self, str(missing), "", "Exact numerical input (*.npy)"
+            )[0]
+            if located:
+                overrides[missing.role] = located
+                self.start_operation(load, accept)
+
+        def accept(record):
+            if isinstance(record, MissingInput):
+                # Let the current worker finish before showing a picker/retrying.
+                self.after_operation = lambda: locate(record)
+                return
+            config = record.config
+            for name, control in [
+                ("iterations", self.iterations),
+                ("epsilon", self.epsilon),
+                ("threshold", self.threshold),
+                ("regularization", self.regularization),
+                ("data_range", self.data_range),
+            ]:
+                value = getattr(config, name)
+                if not control.minimum() <= value <= control.maximum():
+                    raise ValueError(
+                        f"The saved {name} exceeds this version's control limits."
+                    )
+                if (
+                    isinstance(control, QDoubleSpinBox)
+                    and round(value, control.decimals()) != value
+                ):
+                    raise ValueError(
+                        f"The saved {name} requires more precision than these controls support."
+                    )
+            slots = self.slot_records.copy()
+            self.set_observation(record.observation, (0, config.data_range))
+            self.imported_psf = record.psf
+            self.ground_truth = record.ground_truth
+            self.degradation = record.degradation
             self.psf_mode.setCurrentText("Imported PSF")
             self.method.setCurrentIndex(self.method.findData(config.method))
             self.iterations.setValue(config.iterations)
@@ -685,11 +698,6 @@ class MainWindow(QMainWindow):
             self.regularization.setValue(config.regularization)
             self.data_range.setValue(config.data_range)
             self.capture.setChecked(config.inspect)
-            # Refuse configurations that the current controls cannot represent.
-            if self.current_config() != config:
-                raise ValueError(
-                    "This configuration exceeds the controls supported by this version."
-                )
             self.truth_info.setText(
                 "Reopened exact input snapshots; "
                 + (
@@ -699,11 +707,15 @@ class MainWindow(QMainWindow):
                 )
             )
             self.mark_changed()
-            self.refresh_views()
+            self.slot_records = slots
+            self.accept_record(record, slot)
             self.tabs.setCurrentIndex(0)
             self.control_pages.setCurrentIndex(1)
-        except (OSError, ValueError, TypeError, EOFError) as exc:
-            self.error(exc)
+            self.completion_message = (
+                "Saved experiment reopened. No restoration was executed."
+            )
+
+        self.start_operation(load, accept)
 
     def open_source(self):
         path = self.choose_image("Open source / ground truth for simulation")
@@ -1073,6 +1085,7 @@ class MainWindow(QMainWindow):
         if self.worker is not None:
             return
         self.controls.setEnabled(False)
+        self.after_operation = None
         self.completion_message = "Ready."
         if hasattr(self, "reference_panel"):
             self.reference_panel.setEnabled(False)
@@ -1104,6 +1117,9 @@ class MainWindow(QMainWindow):
         self.reference_panel.setEnabled(True)
         self.update_controls()
         self.statusBar().showMessage(self.completion_message)
+        after, self.after_operation = self.after_operation, None
+        if after is not None:
+            after()
 
     @Slot(str)
     def operation_failed(self, message):
@@ -1163,13 +1179,19 @@ class MainWindow(QMainWindow):
             ]
             values += ["N/A" if run.psnr_change is None else f"{run.psnr_change:+.3f}"]
             values += [
-                "Current snapshot"
+                "Saved experiment"
+                if run.saved_from is not None
+                else "Current snapshot"
                 if self.record_revisions[id(run)] == self.revision
                 else "Earlier configuration"
             ]
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(value)
+                if run.saved_from is not None and col in (3, 8):
+                    item.setToolTip(
+                        f"Saved experiment: {run.saved_from}\nTime and quality are recorded from the saved run. {run.metric_note}"
+                    )
                 self.table.setItem(row, col, item)
         self.table.blockSignals(False)
         self.table.fit_columns()
