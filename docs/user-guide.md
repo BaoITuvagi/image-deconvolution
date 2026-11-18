@@ -202,12 +202,23 @@ The configuration is sigma 2, photon level 200, seed 0, RL 5 iterations or TRIF
 lambda 0.1, PSF normalization 1, circular boundaries, epsilon 1e-6, RL initialized
 from the observation, Academic FFT in the saved plugin, no padding/apodization,
 and intact float output. All TIFFs and metadata are checked against recorded
-source hashes. The table separates max absolute difference/RMSE agreement from
-restoration quality. ImageJ MSE/PSNR columns are saved measurements; SSIM is
-calculated in Python. The signed difference image has its own labeled range.
-Show reference details expands the configuration/provenance and additional RMSE,
-saved ImageJ MSE, and Python SSIM of saved DL2 columns. The compact table keeps
-agreement and quality visible without the longer technical explanation.
+source hashes. The table has six columns: Image, Method, Max |difference|,
+Python PSNR (dB), Python SSIM, and ImageJ PSNR (saved). Max |difference| measures
+agreement between Python and DL2; PSNR and SSIM measure restoration quality
+against ground truth. ImageJ PSNR is a saved measurement; Python PSNR/SSIM are
+calculated anew. The same column sizing and normal-weight headers apply before
+and after comparison or row selection. Columns fill the available width and
+scroll horizontally when the window is too narrow for readable headings.
+
+Select a row with the mouse or arrow keys to view the new Python output, saved
+DL2 output and signed difference (Python minus DL2). Zoom and pan are synchronized.
+The first two views use [0, 1]; the signed difference uses its own symmetric
+range [-d, d], where d is the larger of that row's maximum absolute difference
+and 1e-12. Mid-gray represents zero, brighter values are positive and darker
+values are negative. This contrast expansion makes tiny differences visible;
+read Max |difference| to judge their magnitude. There is no expandable details
+control or summary line beneath the images. Technical provenance is documented
+here rather than repeated in the tab.
 
 The largest reproduced absolute difference in the verified environment is
 8.104919255735865e-7. The 1e-6 baseline is configuration-specific. IF has not been

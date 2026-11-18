@@ -10,7 +10,7 @@ research code, synthetic images, and saved reference results.
 
 ## Run the Windows build
 
-The updated local distribution is `dist/rl-inspector/Image Deconvolution/`;
+The updated local distribution is `dist/saved-references/Image Deconvolution/`;
 the earlier evaluation folders are retained separately. Open
 `ImageDeconvolution.exe` and keep its `_internal` folder alongside it. Python,
 Fiji, a server, an account, and network access are not required to use the app.
@@ -45,8 +45,11 @@ and [third-party notices](docs/third-party-notices.md).
    and change RL iterations in Restoration to explore how late iterations can
    reduce quality.
 5. Saved references computes six new Python comparisons against saved DL2 TIFFs.
+   Its six-column table keeps readable, normal-weight headings before and after
+   comparison, fills the available width and scrolls horizontally when narrow.
    It separates agreement from restoration quality and labels saved ImageJ
-   measurements. It never executes Fiji/ImageJ or a JAR.
+   measurements. The three synchronized images show Python, saved DL2 and signed
+   difference outputs. It never executes Fiji/ImageJ or a JAR.
 6. Save numerical float TIFF or use Experiment files to export/reopen a versioned
    JSON bundle with exact input arrays, hashes, CSV measurements, and conventions.
 

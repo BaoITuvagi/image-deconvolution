@@ -1128,15 +1128,100 @@ class DesktopTests(unittest.TestCase):
         table.setFocus()
         QTest.keyClick(table, Qt.Key.Key_Down)
         self.assertEqual(table.currentRow(), 1)
-        self.assertIn("cells / TRIF", self.window.reference_panel.detail.text())
+        self.assertEqual(table.item(1, 0).text(), "cells")
+        self.assertEqual(table.item(1, 1).text(), "TRIF")
         np.testing.assert_array_equal(
             self.window.reference_panel.python_view.array,
             self.window.reference_panel.rows[1]["record"].output,
         )
-        self.assertTrue(self.window.reference_panel.table.isColumnHidden(3))
-        self.window.reference_panel.details.click()
-        self.assertFalse(self.window.reference_panel.table.isColumnHidden(3))
-        self.assertTrue(self.window.reference_panel.note.isVisible())
+        np.testing.assert_array_equal(
+            self.window.reference_panel.saved_view.array,
+            self.window.reference_panel.rows[1]["reference"].pixels,
+        )
+        np.testing.assert_array_equal(
+            self.window.reference_panel.diff_view.array,
+            self.window.reference_panel.rows[1]["difference"],
+        )
+
+    def test_reference_headers_stay_readable_before_and_after_comparison(self):
+        w = self.window
+        w.tabs.setCurrentIndex(2)
+        panel = w.reference_panel
+        table = panel.table
+        self.assertEqual(
+            tuple(table.horizontalHeaderItem(i).text() for i in range(6)),
+            (
+                "Image",
+                "Method",
+                "Max |difference|",
+                "Python PSNR (dB)",
+                "Python SSIM",
+                "ImageJ PSNR (saved)",
+            ),
+        )
+        self.assertEqual(table.columnCount(), 6)
+        for removed in ("details", "note", "detail"):
+            self.assertFalse(hasattr(panel, removed))
+        w.verify_references()
+        self.wait_for_worker()
+        rows = panel.rows
+        for points in (9, 12, 16):
+            font = w.font()
+            font.setPointSize(points)
+            w.setFont(font)
+            for width in (1100, 1800, 2400):
+                w.resize(width, 1000)
+                table.setRowCount(0)
+                self.app.processEvents()
+                before = [table.columnWidth(i) for i in range(6)]
+                metrics = table.horizontalHeader().fontMetrics()
+                self.assertGreaterEqual(sum(before), table.viewport().width())
+                if points == 9 and width == 2400:
+                    self.assertEqual(sum(before), table.viewport().width())
+                for i, size in enumerate(before):
+                    self.assertGreaterEqual(
+                        size, metrics.horizontalAdvance(table.HEADINGS[i]) + 24
+                    )
+                    self.assertFalse(table.isColumnHidden(i))
+                for _ in range(2):
+                    panel.accept_rows(rows)
+                    self.app.processEvents()
+                    self.assertEqual(before, [table.columnWidth(i) for i in range(6)])
+                    for index, result in enumerate(rows):
+                        table.selectRow(index)
+                        self.assertFalse(table.horizontalHeader().font().bold())
+                        self.assertFalse(table.horizontalHeader().highlightSections())
+                        self.assertEqual(
+                            table.horizontalHeader().font().pointSize(), points
+                        )
+                        self.assertEqual(
+                            table.item(index, 2).text(), f"{result['max_abs']:.9g}"
+                        )
+                        self.assertEqual(
+                            table.item(index, 3).text(),
+                            f"{result['record'].quality['psnr']:.9g}",
+                        )
+                        self.assertEqual(
+                            table.item(index, 4).text(),
+                            f"{result['record'].quality['ssim']:.9g}",
+                        )
+                        self.assertEqual(
+                            table.item(index, 5).text(),
+                            f"{result['saved_imagej_psnr']:.9g}",
+                        )
+                        for column in range(6):
+                            self.assertGreaterEqual(
+                                table.columnWidth(column),
+                                table.fontMetrics().horizontalAdvance(
+                                    table.item(index, column).text()
+                                )
+                                + 16,
+                            )
+                        np.testing.assert_array_equal(
+                            panel.diff_view.array, result["difference"]
+                        )
+                if sum(before) > table.viewport().width():
+                    self.assertGreater(table.horizontalScrollBar().maximum(), 0)
 
     def test_contextual_controls_numeric_steps_and_saved_presets(self):
         self.assertFalse(self.window.run_button.isEnabled())
