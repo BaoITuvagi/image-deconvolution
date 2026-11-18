@@ -12,7 +12,6 @@ class ResultSlot(QGroupBox):
         self.setObjectName("resultSlot")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAccessibleName(f"Result slot {number}")
-        self.setToolTip("Select this slot, then run a method or choose a history row.")
         self.full_title = self.title()
         self.setStyleSheet(
             "QGroupBox#resultSlot { border: 2px solid palette(mid); "

@@ -262,7 +262,7 @@ class DesktopTests(unittest.TestCase):
                         box.full_title,
                         f"{w.run_ids[id(run)]}: {run.config.method}: {w.run_parameters(run.config)}",
                     )
-                    self.assertIn(box.full_title, box.toolTip())
+                    self.assertEqual(box.toolTip(), "")
                     self.assertLessEqual(
                         box.fontMetrics().horizontalAdvance(box.title()),
                         box.width() - 20,

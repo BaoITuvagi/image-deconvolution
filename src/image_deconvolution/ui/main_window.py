@@ -1269,18 +1269,6 @@ class MainWindow(QMainWindow):
                 if run is None
                 else f"{self.run_ids[id(run)]}: {run.config.method}: {self.run_parameters(run.config)}"
             )
-            box.setToolTip(
-                "Select this slot, then run a method or choose a history row."
-                if run is None
-                else box.full_title
-                + f"; intensity L={run.config.data_range:g}. "
-                + (
-                    "Earlier configuration. "
-                    if self.record_revisions[id(run)] != self.revision
-                    else ""
-                )
-                + "Select this slot to inspect, save or export this run."
-            )
 
     def fit_views(self):
         for view in self.views + [

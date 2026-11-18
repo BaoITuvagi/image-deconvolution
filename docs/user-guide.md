@@ -72,8 +72,9 @@ current display settings remain in Display & history.
    with the mouse or arrow keys. Only that slot changes; the other compatible
    slots remain. The slot title shows the session run identifier, method and
    parameters on one line, with no separate text row inside the image slot.
-   Narrow titles are shortened with an ellipsis; hover for the complete title,
-   parameters and recorded L. Compact baseline spacing and aligned result
+   Narrow titles are shortened with an ellipsis. Result slots show no hover
+   popups; the history Parameters column retains the run settings and recorded L.
+   Compact baseline spacing and aligned result
    viewports leave more height for the images. On narrow windows or larger text,
    the baseline wraps as needed to remain readable.
    Clicking a populated slot selects its history row
