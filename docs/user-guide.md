@@ -50,23 +50,45 @@ current display settings remain in Display & history.
    Inactive parameters are dimmed. Small decimal parameters use adaptive arrow
    steps. To configure a three-method comparison, select each method and edit its
    retained settings before clicking Compare.
-3. Click Run selected method or Compare IF, TRIF, and RL. Processing runs in a
-   worker; the controls stay disabled until it finishes. The views remain usable.
-4. Select a history row with the mouse or arrow keys to inspect that run's
-   original observation, ground truth, output, measurements, and configuration.
-   Two Additional results selectors above the images list only runs with identical
-   observed pixels. After a three-method comparison, all three outputs appear
-   immediately. The five views use one display range. Each output identifies its
-   method and parameters; the history table also identifies the input image.
-   Loading a new image or editing ground truth shows the current inputs immediately
-   and retains history. View current inputs returns to the next run's inputs at
-   any time. History selection does not replace the controls for the next run;
-   an earlier-configuration notice remains visible when appropriate.
-   Degraded-input and selected-output MSE/PSNR/SSIM use the same ground truth and
-   L. PSNR change is output minus input; a negative value means lower PSNR. These
-   exploratory results do not select benchmark parameters. Undefined infinity
-   differences show N/A.
-5. Click Save selected output TIFF to save float32 pixels, including negative
+3. Initially only the observation and ground truth are shown. Click Run selected
+   method to reveal three fixed result slots: the left slot contains the output
+   and has a selection border; the other two are empty. Another single-method
+   run replaces the selected slot and adds a history row, even with unchanged
+   settings. Repeating RL starts from the observation with the configured number
+   of iterations, rather than continuing the previous run. Click a different
+   slot, including an empty one, to send the next output there. The destination
+   is captured when Run is clicked. Processing runs in a worker; sidebar
+   controls stay disabled until it finishes. The views remain usable.
+4. Compare IF, TRIF, and RL fills all three slots in that left-to-right order
+   using the current observation/PSF and each method's retained parameters,
+   adds three history rows, and keeps the currently selected slot active.
+5. To inspect a saved run, click the destination slot, then select a history row
+   with the mouse or arrow keys. Only that slot changes; the other compatible
+   slots remain. The slot title shows the session run identifier and method,
+   with parameters below it. Clicking a populated slot selects its history row
+   and makes it the run used by RL inspector, Save selected output TIFF and
+   Export selected experiment. Empty slots have no selected run and disable
+   those actions. Press Enter or Space on a focused slot to select it.
+   All five views use one display range. Selecting a run with different observed
+   pixels or ground truth switches the displayed input context and clears
+   incompatible slots, without changing the current inputs/controls for the
+   next run. View current inputs returns to those inputs and hides/clears the
+   result slots while retaining history. Loading a new image or editing ground
+   truth also shows current inputs immediately and retains history.
+   The Configuration column identifies earlier configurations. Column sizing and
+   normal-weight headers follow the same rules with or without history; columns
+   fill the available width. Narrow windows use horizontal scrolling to preserve
+   readable headings. Long cells wrap where possible and retain complete tooltips.
+   The Parameters column includes the recorded intensity L for each run.
+   Degraded input presents aligned MSE, PSNR (dB), and SSIM for the displayed
+   historical input; its tooltip identifies the run and recorded L. Output quality
+   appears in history. Both measurements use that run's ground truth and L.
+   PSNR change is output minus input; a negative value means lower PSNR.
+   These exploratory results do not select benchmark parameters. Undefined
+   infinity differences show N/A. Returning to current inputs clears historical
+   baseline values until another run is inspected or completed. Missing or
+   incompatible ground truth produces N/A with an explanation.
+6. Click Save selected output TIFF to save float32 pixels, including negative
    values or values above 1. This rounds float64 to float32; it never saves the
    display screenshot. An existing file requires the native save dialog's
    overwrite confirmation.
@@ -74,6 +96,8 @@ current display settings remain in Display & history.
 History is limited to eight runs or approximately 256 MiB of counted input/output/
 checkpoint arrays, except a single larger run. Oldest entries are dropped first.
 History is in memory; export a needed run before closing or clearing it.
+Slots referencing an evicted run are emptied; session run identifiers are not
+renumbered as older entries are dropped.
 Clear run history asks for confirmation and keeps saved files.
 
 ## Open your own images and simulate degradation

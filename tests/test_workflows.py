@@ -8,6 +8,7 @@ import gc
 import tempfile
 import time
 import unittest
+from dataclasses import replace
 from itertools import pairwise
 from pathlib import Path
 from unittest.mock import patch
@@ -115,6 +116,166 @@ class DesktopTests(unittest.TestCase):
             time.sleep(0.002)  # Yield the GIL so the Python worker can make progress.
         self.assertIsNone(self.window.worker, "Worker failed to finish")
 
+    def test_single_runs_replace_selected_slot_without_auto_filling(self):
+        w = self.window
+        w.load_sample()
+        self.assertTrue(all(not box.isVisible() for box in w.image_boxes[2:]))
+        self.assertIsNotNone(w.input_view.array)
+        self.assertIsNotNone(w.truth_view.array)
+        for count in range(1, 5):
+            w.run_restoration()
+            self.wait_for_worker()
+            self.assertEqual(len(w.history), count)
+            self.assertEqual(w.active_slot, 0)
+            self.assertIs(w.slot_records[0], w.history[-1])
+            self.assertEqual(w.slot_records[1:], [None, None])
+            self.assertTrue(all(box.isVisible() for box in w.image_boxes[2:]))
+            self.assertEqual(
+                [box.property("active") for box in w.image_boxes[2:]],
+                [True, False, False],
+            )
+            np.testing.assert_array_equal(w.record.output, w.history[0].output)
+
+        left = w.slot_records[0]
+        QTest.mouseClick(w.other_view.viewport(), Qt.MouseButton.LeftButton)
+        self.assertEqual(w.active_slot, 1)
+        self.assertIsNone(w.record)
+        self.assertIsNone(w.inspector.record)
+        self.assertFalse(w.save_button.isEnabled())
+        self.assertFalse(w.export_button.isEnabled())
+        self.assertEqual(w.table.currentRow(), -1)
+        self.assertIsNotNone(w.input_view.array)
+        w.iterations.setValue(7)
+        w.run_restoration()
+        # The run belongs to the slot selected at dispatch, even during inspection.
+        w.select_slot(2)
+        self.wait_for_worker()
+        self.assertEqual(w.active_slot, 1)
+        self.assertIs(w.slot_records[0], left)
+        self.assertEqual(w.record.config.iterations, 7)
+        self.assertIsNone(w.slot_records[2])
+        QTest.keyClick(w.image_boxes[4], Qt.Key.Key_Space)
+        self.assertEqual(w.active_slot, 2)
+        w.select_history(0)
+        self.assertIs(w.slot_records[2], w.history[0])
+        self.assertIs(w.slot_records[0], left)
+        self.assertEqual(w.slot_records[1].config.iterations, 7)
+        self.assertEqual(len(w.history), 5)
+        self.assertEqual(w.iterations.value(), 7)
+        QTest.mouseClick(w.output_view.viewport(), Qt.MouseButton.LeftButton)
+        self.assertIs(w.record, left)
+        self.assertEqual(w.table.currentRow(), 3)
+
+    def test_history_slot_context_keeps_current_inputs_and_metrics_separate(self):
+        w = self.window
+        w.load_sample()
+        w.compare_methods()
+        self.wait_for_worker()
+        cells = list(w.history)
+        w.load_bars()
+        current_observation, current_truth = w.observation, w.ground_truth
+        w.data_range.setValue(2)
+        w.run_restoration()
+        self.wait_for_worker()
+        bars = w.record
+        w.select_slot(1)
+        w.select_history(0)
+        self.assertIs(w.record, cells[0])
+        self.assertIsNone(w.slot_records[0])
+        self.assertIsNone(w.slot_records[2])
+        self.assertIs(w.observation, current_observation)
+        self.assertIs(w.ground_truth, current_truth)
+        self.assertEqual(w.data_range.value(), 2)
+        np.testing.assert_array_equal(w.input_view.array, cells[0].observation.pixels)
+        np.testing.assert_array_equal(w.truth_view.array, cells[0].ground_truth.pixels)
+        for key, label in w.baseline_values.items():
+            self.assertEqual(label.text(), f"{cells[0].input_quality[key]:.5g}")
+        self.assertIn("L=1", w.table.item(0, 2).text())
+        self.assertIn("L=2", w.table.item(3, 2).text())
+        w.select_slot(2)
+        self.assertIsNone(w.record)
+        self.assertTrue(w.current_button.isEnabled())
+        self.assertEqual(
+            w.baseline_values["psnr"].text(), f"{cells[0].input_quality['psnr']:.5g}"
+        )
+        w.select_history(3)
+        self.assertIs(w.record, bars)
+        self.assertIsNone(w.slot_records[1])
+        w.current_button.click()
+        self.assertFalse(w.results_visible)
+        self.assertTrue(
+            all(label.text() == "N/A" for label in w.baseline_values.values())
+        )
+        self.assertEqual(len(w.history), 4)
+        np.testing.assert_array_equal(w.input_view.array, current_observation.pixels)
+
+    def test_slot_eviction_stable_identifiers_and_failed_run_retention(self):
+        w = self.window
+        w.load_sample()
+        w.run_restoration()
+        self.wait_for_worker()
+        first = w.record
+        w.select_slot(2)
+        w.select_history(0)
+        w.select_slot(0)
+        for count in range(8):
+            w.accept_record(replace(first, seconds=count + 1), 0)
+        self.assertEqual(len(w.history), 8)
+        self.assertIsNone(w.slot_records[2])
+        self.assertNotIn(id(first), w.run_ids)
+        self.assertEqual(w.table.item(0, 0).text(), "2: RL")
+        self.assertEqual(w.table.item(7, 0).text(), "9: RL")
+        before = list(w.slot_records)
+        w.select_slot(1)
+
+        def fail():
+            raise ValueError("Slot failure regression")
+
+        w.start_operation(fail, lambda record: w.accept_record(record, 1))
+        self.wait_for_worker()
+        self.assertTrue(all(a is b for a, b in zip(before, w.slot_records)))
+        self.assertEqual(len(w.history), 8)
+        self.assertIsNone(w.record)
+        w.clear_history()
+        self.assertEqual(w.slot_records, [None, None, None])
+        self.assertFalse(w.results_visible)
+        self.assertIsNone(w.view_record)
+
+    def test_history_headers_fill_width_and_keep_layout_without_bold(self):
+        w = self.window
+        w.load_sample()
+        for points in (9, 12, 16):
+            font = w.font()
+            font.setPointSize(points)
+            w.setFont(font)
+            for width in (1100, 1800):
+                w.resize(width, 1000)
+                self.app.processEvents()
+                table = w.table
+                table.fit_columns()
+                columns = [table.columnWidth(i) for i in range(table.columnCount())]
+                metrics = table.horizontalHeader().fontMetrics()
+                self.assertGreaterEqual(sum(columns), table.viewport().width())
+                for i, heading in enumerate(table.HEADINGS):
+                    self.assertGreaterEqual(
+                        columns[i], metrics.horizontalAdvance(heading) + 24
+                    )
+                self.assertFalse(table.horizontalHeader().font().bold())
+                self.assertEqual(table.horizontalHeader().font().pointSize(), points)
+                self.assertFalse(table.horizontalHeader().highlightSections())
+                # Row contents must never trigger a different column-sizing policy.
+                w.run_restoration()
+                self.wait_for_worker()
+                self.app.processEvents()
+                self.assertEqual(
+                    columns, [table.columnWidth(i) for i in range(table.columnCount())]
+                )
+                self.assertIn("L=1", table.item(0, 2).text())
+                w.clear_history()
+                self.app.processEvents()
+        for removed in ("other_run", "third_run", "result_info", "context_info"):
+            self.assertFalse(hasattr(w, removed))
+
     def test_load_run_stale_save_and_errors(self):
         self.window.control_pages.setCurrentIndex(1)
         self.assertFalse(self.window.run_button.isEnabled())
@@ -139,7 +300,10 @@ class DesktopTests(unittest.TestCase):
         self.assertIsNotNone(self.window.record)
         snapshot = self.window.record.output.copy()
         self.window.iterations.setValue(10)
-        self.assertIn("earlier configuration", self.window.result_info.text())
+        self.assertIn(
+            "Earlier configuration",
+            self.window.table.item(self.window.table.currentRow(), 8).text(),
+        )
         np.testing.assert_array_equal(self.window.record.output, snapshot)
         self.window.low.setValue(-1)
         self.window.high.setValue(2)
@@ -178,8 +342,8 @@ class DesktopTests(unittest.TestCase):
         )
         self.assertEqual(self.window.table.rowCount(), 3)
         self.assertIsNotNone(self.window.record.quality)
+        self.window.select_slot(2)
         self.assertGreater(self.window.inspector.iteration.count(), 0)
-        self.window.other_run.setCurrentIndex(1)
         self.assertIsNotNone(self.window.other_view.array)
         self.window.input_view._auto_fit = False
         self.window.input_view.scale(2, 2)
@@ -282,9 +446,9 @@ class DesktopTests(unittest.TestCase):
         self.window.load_sample()
         self.window.compare_methods()
         self.wait_for_worker()
-        self.assertEqual(self.window.table.currentRow(), 2)
+        self.window.select_slot(0)
         self.window.table.setFocus()
-        QTest.keyClick(self.window.table, Qt.Key.Key_Up)
+        QTest.keyClick(self.window.table, Qt.Key.Key_Down)
         self.assertIs(self.window.record, self.window.history[1])
         self.assertEqual(self.window.record.config.method, "TRIF")
         np.testing.assert_array_equal(
@@ -314,7 +478,10 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.window.export_button.isEnabled())
         self.window.select_history(0)
         self.window.select_history(1)
-        self.assertIn("earlier configuration", self.window.result_info.text())
+        self.assertIn(
+            "Earlier configuration",
+            self.window.table.item(self.window.table.currentRow(), 8).text(),
+        )
         self.window.current_button.click()
         self.assertIsNone(self.window.record)
         np.testing.assert_array_equal(
@@ -537,7 +704,10 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(np.array_equal(changed_psf.pixels, original_psf.pixels))
         self.assertIs(self.window.observation, observed)
         self.assertEqual(self.window.history, [previous])
-        self.assertIn("earlier configuration", self.window.result_info.text())
+        self.assertIn(
+            "Earlier configuration",
+            self.window.table.item(self.window.table.currentRow(), 8).text(),
+        )
         config, revision = self.window.current_config(), self.window.revision
         for section in (2, 1, 3, 0, 1, 0, 1):
             self.window.control_pages.setCurrentIndex(section)
@@ -791,8 +961,8 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.window.run_button.isEnabled())
         self.assertFalse(self.window.simulate_button.isEnabled())
         self.assertFalse(self.window.clear_history_button.isEnabled())
-        self.assertFalse(self.window.other_run.isEnabled())
-        self.assertFalse(self.window.third_run.isEnabled())
+        self.assertFalse(self.window.results_visible)
+        self.assertTrue(all(run is None for run in self.window.slot_records))
         self.assertEqual(self.window.saved_example.count(), 3)
         for index, name in enumerate(["cells", "bars", "fibers"]):
             self.assertEqual(
@@ -1073,30 +1243,22 @@ class DesktopTests(unittest.TestCase):
             self.assertEqual(self.window.high.value(), 1)
             np.testing.assert_array_equal(self.window.observation.pixels, pixels / 255)
 
-    def test_comparison_baseline_filtered_choices_and_clear_confirmation(self):
+    def test_comparison_baseline_slots_and_clear_confirmation(self):
         self.window.load_sample()
         self.window.compare_methods()
         self.wait_for_worker()
+        self.assertEqual(
+            [r.config.method for r in self.window.slot_records], ["IF", "TRIF", "RL"]
+        )
+        self.window.select_slot(2)
         record = self.window.record
         self.assertIsNotNone(self.window.other_view.array)
         self.assertIsNotNone(self.window.third_view.array)
-        methods = {
-            record.config.method,
-            self.window.other_run.currentData().config.method,
-            self.window.third_run.currentData().config.method,
-        }
-        self.assertEqual(methods, {"IF", "TRIF", "RL"})
-        target = self.window.third_run.currentData()
-        index = next(
-            i
-            for i in range(self.window.other_run.count())
-            if self.window.other_run.itemData(i) is target
+        self.assertEqual(
+            self.window.baseline_values["psnr"].text(),
+            f"{record.input_quality['psnr']:.5g}",
         )
-        self.window.other_run.setCurrentIndex(index)
-        self.assertIsNot(
-            self.window.other_run.currentData(), self.window.third_run.currentData()
-        )
-        self.assertIn("Degraded input:", self.window.quality_info.text())
+        self.assertFalse(self.window.quality_info.isVisible())
         self.assertAlmostEqual(record.input_quality["psnr"], 31.300618881, places=7)
         self.assertLess(record.psnr_change, 0)
         with patch(
@@ -1108,7 +1270,7 @@ class DesktopTests(unittest.TestCase):
         self.window.load_bars()
         self.window.run_restoration()
         self.wait_for_worker()
-        self.assertEqual(self.window.other_run.count(), 1)
+        self.assertIsNone(self.window.slot_records[1])
         self.assertIsNone(self.window.other_view.array)
         with patch(
             "PySide6.QtWidgets.QMessageBox.question",
